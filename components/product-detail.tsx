@@ -27,13 +27,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
     })
   }
 
-  // Helper function to convert color string to CSS value
   const getColorValue = (color: string): string => {
-    // If it's already a hex color, return it
     if (color.startsWith("#")) {
       return color
     }
-    // Map common color names to hex values
     const colorMap: Record<string, string> = {
       oro: "#D4AF37",
       gold: "#D4AF37",
@@ -49,15 +46,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
     return colorMap[color.toLowerCase()] || color
   }
 
-  const availableSizes = product.sizes || ["S", "M", "L", "XL"]
-  const availableColors = product.colors || []
+  const availableSizes = product.sizes && product.sizes.length ? product.sizes : []
+  const availableColors = product.colors && product.colors.length ? product.colors : []
 
-  const imageSrc = imageError ? "/placeholder.svg" : (product.image || "/placeholder.svg")
+  const safeCategory =
+    typeof product.category === "string" && product.category ? product.category : "sin categoria"
+  const safeName = product.name || "Producto sin nombre"
+  const priceValue = typeof product.price === "number" && Number.isFinite(product.price) ? product.price : 0
+  const imageSrc = imageError ? "/placeholder.svg" : product.image || "/placeholder.svg"
 
   return (
     <section className="py-8 md:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Breadcrumb */}
         <div className="mb-6 md:mb-8">
           <Link
             href="/productos"
@@ -69,12 +69,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 lg:gap-16">
-          {/* Product Image */}
           <div className="space-y-4">
             <div className="relative aspect-[3/4] md:aspect-square bg-muted rounded-2xl overflow-hidden group">
               <img
                 src={imageSrc}
-                alt={product.name}
+                alt={safeName}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 onError={() => setImageError(true)}
                 loading="eager"
@@ -90,20 +89,20 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </div>
               )}
             </div>
-            {/* Additional images could go here */}
           </div>
 
-          {/* Product Info */}
           <div className="flex flex-col justify-center space-y-6 md:space-y-8">
             <div className="space-y-3 md:space-y-4">
               <p className="text-[10px] sm:text-xs tracking-widest text-muted-foreground uppercase">
-                {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                {safeCategory.charAt(0).toUpperCase() + safeCategory.slice(1)}
               </p>
               <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight text-balance">
-                {product.name}
+                {safeName}
               </h1>
               <div className="flex items-baseline gap-4">
-                <p className="text-2xl sm:text-3xl font-light">${product.price.toFixed(2)}</p>
+                <p className="text-2xl sm:text-3xl font-light">
+                  {priceValue ? `$${priceValue.toFixed(2)}` : "Precio no disponible"}
+                </p>
                 {product.inStock ? (
                   <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-green-600">
                     <Check className="w-4 h-4" />
@@ -117,19 +116,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
             <div className="border-t border-b border-border py-6 md:py-8">
               <p className="text-sm sm:text-base text-muted-foreground leading-relaxed text-pretty">
-                {product.description}
+                {product.description || "Sin descripcion"}
               </p>
             </div>
 
-            {/* Size and Color Selection */}
             {(availableSizes.length > 0 || availableColors.length > 0) && (
               <div className="space-y-4 pt-6 border-t border-border">
-                {/* Size Selection */}
                 {availableSizes.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">
-                      Talla
-                    </h3>
+                    <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">Talla</h3>
                     <div className="flex flex-wrap gap-2">
                       {availableSizes.map((size) => (
                         <button
@@ -148,15 +143,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   </div>
                 )}
 
-                {/* Color Selection */}
                 {availableColors.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">
-                      Color
-                    </h3>
+                    <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">Color</h3>
                     <div className="flex flex-wrap gap-2">
                       {availableColors.map((color, index) => {
-                        const colorValue = getColorValue(color)
+                        const colorValue = typeof color === "string" ? getColorValue(color) : ""
                         return (
                           <button
                             key={`${color}-${index}`}
@@ -177,15 +169,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
               </div>
             )}
 
-            {/* Product Details */}
             <div className="space-y-4 pt-6 border-t border-border">
               <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground mb-4">
                 Detalles del Producto
               </h3>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <div className="flex justify-between">
-                  <span className="font-medium">Categoría:</span>
-                  <span>{product.category.charAt(0).toUpperCase() + product.category.slice(1)}</span>
+                  <span className="font-medium">Categoria:</span>
+                  <span>{safeCategory.charAt(0).toUpperCase() + safeCategory.slice(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Disponibilidad:</span>
@@ -195,7 +186,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Precio:</span>
-                  <span>${product.price.toFixed(2)}</span>
+                  <span>{priceValue ? `$${priceValue.toFixed(2)}` : "No disponible"}</span>
                 </div>
               </div>
             </div>
@@ -214,28 +205,27 @@ export function ProductDetail({ product }: ProductDetailProps) {
               {product.inStock && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                  <span>En stock - Envío inmediato</span>
+                  <span>En stock - Envio inmediato</span>
                 </div>
               )}
             </div>
 
-            {/* Shipping Info */}
             <div className="space-y-3 md:space-y-4 pt-6 border-t border-border">
               <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground mb-3">
-                Información de Compra
+                Informacion de Compra
               </h3>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <div className="flex items-start gap-3">
                   <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Envío gratuito en compras superiores a $150</p>
+                  <p className="leading-relaxed">Envio gratuito en compras superiores a $150</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Devoluciones gratuitas dentro de 30 días</p>
+                  <p className="leading-relaxed">Devoluciones gratuitas dentro de 30 dias</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Garantía de autenticidad y calidad</p>
+                  <p className="leading-relaxed">Garantia de autenticidad y calidad</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />

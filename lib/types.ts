@@ -25,3 +25,26 @@ export interface CartContextType {
   total: number
   itemCount: number
 }
+
+export interface Category {
+  id: string
+  name: string
+  description?: string
+  image?: string
+}
+
+export interface Collection {
+  id: string
+  name: string
+  description?: string
+  image?: string
+  categories?: Category[]
+}
+
+export interface ProductCombination {
+  id: string
+  title?: string
+  description?: string
+  products?: Product[]
+  relatedProductId?: string
+}
