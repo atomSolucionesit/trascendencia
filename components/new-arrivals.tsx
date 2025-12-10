@@ -1,14 +1,32 @@
-"use client"
-
 import Link from "next/link"
 import { ProductCard } from "./product-card"
 import { Button } from "./ui/button"
 import type { Product } from "@/lib/types"
+import { productService } from "@/services/nexus/products"
+import { extractProductsArray, normalizeProduct, toProductTimestamp } from "@/lib/normalizers/product"
 
-// En espera de datos reales desde Nexus.
-const newProducts: Product[] = []
+async function loadNewProducts(): Promise<Product[]> {
+  try {
+    const response = await productService.getLatestProducts(4)
+    const candidates = extractProductsArray(response)
 
-export function NewArrivals() {
+    return candidates
+      .map((item) => {
+        const normalized = normalizeProduct(item)
+        return { product: normalized ? { ...normalized, isNew: true } : null, ts: toProductTimestamp(item) }
+      })
+      .filter((entry) => entry.product !== null)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 4)
+      .map((entry) => entry.product as Product)
+  } catch (error) {
+    console.error("Error fetching new products:", error)
+    return []
+  }
+}
+
+export async function NewArrivals() {
+  const newProducts = await loadNewProducts()
   const hasProducts = newProducts.length > 0
 
   return (

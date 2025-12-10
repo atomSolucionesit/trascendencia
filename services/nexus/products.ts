@@ -12,16 +12,34 @@ interface AxiosError {
 
 export const getProducts = async (
   page = 1,
-  size = 10
+  size = 10,
+  extraParams: Record<string, string | number | undefined> = {}
 ): Promise<any> => {
   try {
     const response = await api.get(`/products`, {
-      params: { page, size },
+      params: { page, size, ...extraParams },
     });
     return response.data.info.data;
     
   } catch (error) {
     console.error("Error fetching products:", error);
+    throw error;
+  }
+};
+
+export const getLatestProducts = async (size = 4): Promise<any> => {
+  try {
+    const response = await api.get(`/products`, {
+      params: {
+        page: 1,
+        size,
+        orderKey: "createdAt",
+        orderBy: "desc",
+      },
+    });
+    return response.data.info.data;
+  } catch (error) {
+    console.error("Error fetching latest products:", error);
     throw error;
   }
 };
@@ -141,6 +159,7 @@ export const uploadProductImage = async (
 
 export const productService = {
   getProducts,
+  getLatestProducts,
   getFeaturedProducts,
   getProductById,
   createProduct,

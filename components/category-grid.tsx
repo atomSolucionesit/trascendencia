@@ -1,16 +1,23 @@
 import Link from "next/link"
+import { categoryService } from "@/services/nexus/categories"
+import type { Category } from "@/lib/types"
+import { extractCategoriesArray, normalizeCategory } from "@/lib/normalizers/category"
 
-type CategoryCard = {
-  id: string
-  name: string
-  image?: string
-  description?: string
+async function loadCategories(): Promise<Category[]> {
+  try {
+    const response = await categoryService.getCategories()
+    const candidates = extractCategoriesArray(response)
+    return candidates
+      .map((item) => normalizeCategory(item))
+      .filter((item): item is Category => item !== null)
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    return []
+  }
 }
 
-// Colecciones vacias hasta que se carguen desde Nexus.
-const categories: CategoryCard[] = []
-
-export function CategoryGrid() {
+export async function CategoryGrid() {
+  const categories = await loadCategories()
   const hasCategories = categories.length > 0
 
   return (
@@ -19,7 +26,7 @@ export function CategoryGrid() {
         <div className="text-center mb-12 lg:mb-16">
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl mb-4 text-balance">Explora por Categoria</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto text-pretty">
-            Colecciones y categorias pendientes de sincronizar con Nexus.
+            Colecciones y categorias directamente desde Nexus.
           </p>
         </div>
 

@@ -3,64 +3,14 @@ import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { productService } from "@/services/nexus/products"
 import type { Product } from "@/lib/types"
-
-const normalizeProduct = (item: any): Product | null => {
-  const id = item?.id !== undefined && item?.id !== null ? String(item.id) : ""
-  const name = item?.name ?? ""
-
-  if (!id || !name) return null
-
-  const rawPrice = item?.sellingPrice ?? item?.price
-  const priceNumber =
-    typeof rawPrice === "number"
-      ? rawPrice
-      : typeof rawPrice === "string"
-        ? Number(rawPrice)
-        : 0
-
-  const firstImage = Array.isArray(item?.images) && item.images.length ? item.images[0] : null
-  const imageUrl =
-    typeof firstImage === "string"
-      ? firstImage
-      : firstImage && typeof firstImage.url === "string"
-        ? firstImage.url
-        : undefined
-
-  const categories = Array.isArray(item?.CategoryProduct) ? item.CategoryProduct : []
-  const firstCategory = categories.length ? categories[0] : null
-  const categoryName =
-    firstCategory && firstCategory.category && typeof firstCategory.category.name === "string"
-      ? firstCategory.category.name
-      : item?.category ?? "sin-categoria"
-
-  return {
-    id,
-    name,
-    price: Number.isFinite(priceNumber) ? priceNumber : 0,
-    image: imageUrl ?? "/placeholder.svg",
-    category: categoryName,
-    description: item?.description ?? "",
-    inStock: item?.inStock ?? true,
-    sizes: Array.isArray(item?.sizes) ? item.sizes : [],
-    colors: Array.isArray(item?.colors) ? item.colors : [],
-  }
-}
+import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
 
 export const revalidate = 0
 
 async function loadProducts(): Promise<Product[]> {
   try {
     const response = await productService.getProducts(1, 20)
-    const candidates =
-      (Array.isArray(response)
-        ? response
-        : Array.isArray((response as { data?: unknown }).data)
-          ? (response as { data: unknown[] }).data
-          : Array.isArray((response as { items?: unknown }).items)
-            ? (response as { items: unknown[] }).items
-            : Array.isArray((response as { info?: { data?: unknown } }).info?.data)
-              ? (response as { info: { data: unknown[] } }).info.data
-              : []) as any[]
+    const candidates = extractProductsArray(response)
 
     return candidates
       .map((item) => normalizeProduct(item))
