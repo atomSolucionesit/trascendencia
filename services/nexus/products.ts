@@ -47,7 +47,6 @@ export const getLatestProducts = async (size = 4): Promise<any> => {
 export const getFeaturedProducts = async (): Promise<any> => {
   try {
     const response = await api.get(`/products/ecommerce/${9}/outstanding`);
-    console.log("PRODUCTS: ", response.data.info.data);
     return response.data.info.data;
     
   } catch (error) {
@@ -157,6 +156,16 @@ export const uploadProductImage = async (
   }
 };
 
+export const getProductByCategory = async (categoryId: any): Promise<any> => {
+  try {
+    const response = await api.get(`/products/ecommerce/9/category/${categoryId}`);
+    return response.data.info.data[0].CategoryProduct[0].category;
+  } catch (error) {
+    console.error(`Error fetching product ${categoryId}:`, error);
+    throw error;
+  }
+};
+
 export const productService = {
   getProducts,
   getLatestProducts,
@@ -166,4 +175,5 @@ export const productService = {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  getProductByCategory
 };

@@ -3,7 +3,7 @@ import { categoryService } from "@/services/nexus/categories"
 import type { Category } from "@/lib/types"
 import { extractCategoriesArray, normalizeCategory } from "@/lib/normalizers/category"
 
-async function loadCategories(): Promise<Category[]> {
+export async function fetchCategories(): Promise<Category[]> {
   try {
     const response = await categoryService.getCategories()
     const candidates = extractCategoriesArray(response)
@@ -17,7 +17,7 @@ async function loadCategories(): Promise<Category[]> {
 }
 
 export async function CategoryGrid() {
-  const categories = await loadCategories()
+  const categories = await fetchCategories()
   const hasCategories = categories.length > 0
 
   return (

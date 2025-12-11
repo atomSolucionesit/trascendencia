@@ -39,6 +39,7 @@ export interface Collection {
   description?: string
   image?: string
   categories?: Category[]
+  products?: Product[]
 }
 
 export interface ProductCombination {

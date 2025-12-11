@@ -1,18 +1,10 @@
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import Link from "next/link"
+import { fetchCategories } from "@/components/category-grid"
 
-type CategoryCard = {
-  id: string
-  name: string
-  description?: string
-  image?: string
-}
-
-// Sin colecciones locales; se cargaran desde Nexus.
-const categories: CategoryCard[] = []
-
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  const categories = await fetchCategories()
   const hasCategories = categories.length > 0
 
   return (
@@ -22,9 +14,7 @@ export default function CategoriesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-4">Colecciones</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Las colecciones se cargaran automaticamente desde Nexus.
-            </p>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Explora nuestras colecciones cuidadosamente curadas de joyeria elegante</p>
           </div>
 
           {hasCategories ? (
@@ -53,7 +43,7 @@ export default function CategoriesPage() {
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-muted-foreground">Aun no hay colecciones disponibles.</p>
+              <p className="text-muted-foreground">Aun no hay categorias disponibles.</p>
             </div>
           )}
         </div>
