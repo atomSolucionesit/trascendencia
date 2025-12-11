@@ -37,7 +37,7 @@ export async function NewArrivals() {
             Lo Nuevo
           </h2>
           <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
-            Descubre nuestras ultimas creaciones, listas para llegar desde Nexus.
+            Descubre nuestras ultimas creaciones, diseñadas para capturar la esencia de este momento
           </p>
         </div>
 

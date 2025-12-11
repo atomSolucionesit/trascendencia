@@ -26,7 +26,7 @@ export async function CategoryGrid() {
         <div className="text-center mb-12 lg:mb-16">
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl mb-4 text-balance">Explora por Categoria</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto text-pretty">
-            Colecciones y categorias directamente desde Nexus.
+            Encuentra la pieza perfecta para cada ocasión
           </p>
         </div>
 

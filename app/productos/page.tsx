@@ -35,7 +35,7 @@ export default async function ProductsPage() {
               Todos los Productos
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto">
-              El catalogo se mostrara aqui en cuanto llegue desde Nexus.
+              Explora nuestra colección completa de joyería elegante
             </p>
           </div>
 
