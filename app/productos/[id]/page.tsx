@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import { ProductDetail } from "@/components/product-detail"
 import { RelatedProducts } from "@/components/related-products"

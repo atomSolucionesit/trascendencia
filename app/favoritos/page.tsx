@@ -1,4 +1,4 @@
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { FavoritesContent } from "@/components/favorites-content"
@@ -25,4 +25,3 @@ export default function FavoritesPage() {
     </div>
   )
 }
-

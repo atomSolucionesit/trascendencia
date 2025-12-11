@@ -1,4 +1,4 @@
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import Link from "next/link"
 import { fetchCategories } from "@/components/category-grid"
