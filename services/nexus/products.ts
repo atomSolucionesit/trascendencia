@@ -65,6 +65,26 @@ export const getProductById = async (id: any): Promise<any> => {
   }
 };
 
+export const getProductCombinations = async (
+  id: string,
+  options: { limit?: number; strategy?: string; excludeOutOfStock?: boolean } = {}
+): Promise<any> => {
+  try {
+    const { limit = 10, strategy = "all", excludeOutOfStock = true } = options
+    const response = await api.get(`/products/${id}/combinations`, {
+      params: {
+        limit,
+        strategy,
+        excludeOutOfStock,
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error(`Error fetching combinations for product ${id}:`, error)
+    throw error
+  }
+}
+
 export const createProduct = async (
   productData: any
 ): Promise<Product> => {
@@ -171,6 +191,7 @@ export const productService = {
   getLatestProducts,
   getFeaturedProducts,
   getProductById,
+  getProductCombinations,
   createProduct,
   updateProduct,
   deleteProduct,

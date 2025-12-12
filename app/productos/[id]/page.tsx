@@ -5,63 +5,14 @@ import { ProductDetail } from "@/components/product-detail"
 import { RelatedProducts } from "@/components/related-products"
 import { productService } from "@/services/nexus/products"
 import type { Product } from "@/lib/types"
-
-type RawProduct = Partial<Product> & {
-  id?: string | number | null
-  name?: string | null
-  price?: number | string | null
-  sellingPrice?: number | string | null
-  category?: string | null
-  image?: string | null
-  description?: string | null
-  inStock?: boolean | null
-  sizes?: string[] | null
-  colors?: string[] | null
-  images?: Array<{ url?: string } | string> | null
-  CategoryProduct?: Array<{ category?: { name?: string } }>
-}
-
-const normalizeProduct = (item: RawProduct): Product | null => {
-  const id = item?.id !== undefined && item?.id !== null ? String(item.id) : ""
-  const name = item?.name ?? ""
-
-  if (!id || !name) return null
-
-  const rawPrice = item?.sellingPrice ?? item?.price
-  const priceNumber =
-    typeof rawPrice === "number"
-      ? rawPrice
-      : typeof rawPrice === "string"
-        ? Number(rawPrice)
-        : 0
-
-  const firstImage = Array.isArray(item?.images) && item.images.length ? item.images[0] : null
-  const imageUrl =
-    typeof firstImage === "string"
-      ? firstImage
-      : firstImage && typeof firstImage.url === "string"
-        ? firstImage.url
-        : undefined
-
-  const categories = Array.isArray(item?.CategoryProduct) ? item.CategoryProduct : []
-  const firstCategory = categories.length ? categories[0] : null
-  const categoryName =
-    firstCategory && firstCategory.category && typeof firstCategory.category.name === "string"
-      ? firstCategory.category.name
-      : item?.category ?? "sin-categoria"
-
-  return {
-    id,
-    name,
-    price: Number.isFinite(priceNumber) ? priceNumber : 0,
-    image: imageUrl ?? "/placeholder.svg",
-    category: categoryName,
-    description: item?.description ?? "",
-    inStock: item?.inStock ?? true,
-    sizes: Array.isArray(item?.sizes) ? item.sizes : [],
-    colors: Array.isArray(item?.colors) ? item.colors : [],
-  }
-}
+import {
+  extractProductsArray,
+  extractSuggestionGroups,
+  normalizeProduct,
+  normalizeSuggestionGroup,
+  type SuggestionGroupNormalized,
+} from "@/lib/normalizers/product"
+import { ProductCombinations } from "@/components/product-combinations"
 
 async function loadProduct(id: string): Promise<Product | null> {
   try {
@@ -71,15 +22,50 @@ async function loadProduct(id: string): Promise<Product | null> {
 
     const candidate =
       dataSection && typeof dataSection === "object"
-        ? (dataSection as RawProduct)
+        ? dataSection
         : Array.isArray(infoData) && infoData.length
-          ? (infoData[0] as RawProduct)
-          : (response as RawProduct)
+          ? infoData[0]
+          : response
 
     return normalizeProduct(candidate)
   } catch (error) {
     console.error("Error fetching product:", error)
     return null
+  }
+}
+
+async function loadCombinations(product: Product): Promise<SuggestionGroupNormalized[]> {
+  try {
+    const response = await productService.getProductCombinations(product.id, { strategy: "all", excludeOutOfStock: true })
+    const groups = extractSuggestionGroups(response)
+
+    const normalizedGroups = groups
+      .map((group) => normalizeSuggestionGroup(group))
+      .filter((group): group is SuggestionGroupNormalized => !!group && group.products && group.products.length > 0)
+
+    if (normalizedGroups.length) {
+      return normalizedGroups
+    }
+
+    // Fallback simple: sugerencias por categoría si no hay combos
+    const fallbackResponse = await productService.getProducts(1, 4, { categoryIds: product.category })
+    const fallbackCandidates = extractProductsArray(fallbackResponse)
+      .map((item) => normalizeProduct(item))
+      .filter((p): p is Product => !!p && p.id !== product.id)
+
+    if (fallbackCandidates.length) {
+      return [
+        {
+          label: "Productos relacionados",
+          products: fallbackCandidates.slice(0, 4),
+        },
+      ]
+    }
+
+    return []
+  } catch (error) {
+    console.error("Error fetching combinations:", error)
+    return []
   }
 }
 
@@ -92,6 +78,7 @@ export default async function ProductPage({
 }) {
   const resolvedParams = await Promise.resolve(params)
   const product = await loadProduct(resolvedParams.id)
+  const combinations = product ? await loadCombinations(product) : []
 
   if (!product) {
     notFound()
@@ -102,6 +89,7 @@ export default async function ProductPage({
       <Header />
       <main>
         <ProductDetail product={product} />
+        <ProductCombinations suggestions={combinations} />
         <RelatedProducts currentProductId={product.id} category={product.category} products={[]} />
       </main>
       <Footer />
