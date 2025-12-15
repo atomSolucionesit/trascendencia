@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const apiUrl = process.env.NEXUS_API_URL;
-const apiKey = process.env.NEXUS_API_KEY;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const apiKey = process.env.NEXT_PUBLIC_API_KEY;
 
 if (!apiUrl) {
   throw new Error("NEXUS_API_URL is not configured");

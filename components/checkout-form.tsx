@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
+import { buildSaleId, createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
+import { createSale, updateSaleStatus } from "@/services/sales"
 
-// Helper function to convert color string to CSS value
 const getColorValue = (color: string): string => {
   if (color.startsWith("#")) {
     return color
@@ -35,6 +36,15 @@ export function CheckoutForm() {
   const router = useRouter()
   const { items, total, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [cardNumber, setCardNumber] = useState("")
+  const [cardName, setCardName] = useState("")
+  const [expiryMonth, setExpiryMonth] = useState("")
+  const [expiryYear, setExpiryYear] = useState("")
+  const [cvv, setCvv] = useState("")
+  const [docNumber, setDocNumber] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [saleId, setSaleId] = useState<string | null>(null)
 
   const shippingCost = total >= 150 ? 0 : 15
   const finalTotal = total + shippingCost
@@ -42,12 +52,106 @@ export function CheckoutForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsProcessing(true)
+    setError(null)
+    setSuccessMessage(null)
 
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      if (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv) {
+        throw new Error("Completa los datos de la tarjeta")
+      }
 
-    clearCart()
-    router.push("/confirmacion")
+      const normalizedMonth = expiryMonth.replace(/\D/g, "").padStart(2, "0").slice(-2)
+      const normalizedYear = expiryYear.replace(/\D/g, "").slice(-2).padStart(2, "0")
+
+      if (normalizedMonth.length !== 2 || normalizedYear.length !== 2) {
+        throw new Error("Formato de expiración inválido")
+      }
+
+      const salePayload = {
+        total: finalTotal,
+        subTotal: total,
+        taxAmount: 0,
+        status: "PENDING",
+        receiptTypeId: 1,
+        documentTypeId: 1,
+        currencyId: 1,
+        paymentCharge: {
+          amountPaid: 0,
+          turned: 0,
+          isCredit: true,
+          date: new Date().toISOString(),
+          dueDate: new Date().toISOString(),
+          outstandingBalance: 0,
+          details: [],
+        },
+        details: items.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          discount: 0,
+        })),
+      }
+
+      const saleResponse = await createSale(salePayload)
+      const saleIdentifier =
+        (saleResponse as any)?.info?.id ||
+        (saleResponse as any)?.id ||
+        (saleResponse as any)?.info?.saleId ||
+        null
+      if (!saleIdentifier) {
+        throw new Error("No se pudo obtener el ID de la venta")
+      }
+      setSaleId(String(saleIdentifier))
+
+      const tokenResponse = await createPaywayToken({
+        card_number: cardNumber.replace(/\s+/g, ""),
+        card_expiration_month: normalizedMonth,
+        card_expiration_year: normalizedYear,
+        security_code: cvv,
+        card_holder_name: cardName,
+        card_holder_identification: {
+          type: "dni",
+          number: docNumber || "00000000",
+        },
+      })
+
+      const token = tokenResponse.id
+      const saleId = buildSaleId()
+
+      const amountInCents = Math.round(finalTotal * 100)
+
+      const paymentResponse = await createPaywayPayment({
+        token,
+        amount: amountInCents,
+        saleId: String(saleIdentifier),
+      })
+
+      if (!paymentResponse.success) {
+        throw new Error("Pago rechazado o error al procesar el pago")
+      }
+
+      if (paymentResponse.success) {
+        await updateSaleStatus(String(saleIdentifier), { status: "COMPLETED" })
+        setSuccessMessage("Pago aprobado")
+        clearCart()
+        router.push("/confirmacion")
+      } else {
+        await updateSaleStatus(String(saleIdentifier), { status: "FAILED" })
+        throw new Error("Pago rechazado o error al procesar el pago")
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al procesar el pago"
+      setError(message)
+      if (saleId) {
+        try {
+          await updateSaleStatus(saleId, { status: "FAILED" })
+        } catch (e) {
+          console.error("No se pudo actualizar la venta a FAILED", e)
+        }
+      }
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   useEffect(() => {
@@ -63,9 +167,7 @@ export function CheckoutForm() {
   return (
     <form onSubmit={handleSubmit}>
       <div className="grid lg:grid-cols-3 gap-12">
-        {/* Checkout Form */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Shipping Information */}
           <div className="space-y-6">
             <h2 className="font-serif text-2xl">Información de Envío</h2>
             <div className="grid md:grid-cols-2 gap-4">
@@ -106,7 +208,6 @@ export function CheckoutForm() {
             </div>
           </div>
 
-          {/* Payment Information */}
           <div className="space-y-6 pt-8 border-t border-border">
             <div className="flex items-center gap-2">
               <h2 className="font-serif text-2xl">Información de Pago</h2>
@@ -114,29 +215,71 @@ export function CheckoutForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cardName">Nombre en la Tarjeta</Label>
-              <Input id="cardName" required />
+              <Input id="cardName" value={cardName} onChange={(e) => setCardName(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="docNumber">Documento (DNI)</Label>
+              <Input
+                id="docNumber"
+                value={docNumber}
+                onChange={(e) => setDocNumber(e.target.value)}
+                placeholder="12345678"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cardNumber">Número de Tarjeta</Label>
               <div className="relative">
-                <Input id="cardNumber" placeholder="1234 5678 9012 3456" required />
+                <Input
+                  id="cardNumber"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  placeholder="1234 5678 9012 3456"
+                  required
+                />
                 <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="expiry">Fecha de Expiración</Label>
-                <Input id="expiry" placeholder="MM/AA" required />
+                <Label htmlFor="expiryMonth">Mes (MM)</Label>
+                <Input
+                  id="expiryMonth"
+                  value={expiryMonth}
+                  onChange={(e) => setExpiryMonth(e.target.value)}
+                  placeholder="12"
+                  maxLength={2}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expiryYear">Año (YY o YYYY)</Label>
+                <Input
+                  id="expiryYear"
+                  value={expiryYear}
+                  onChange={(e) => setExpiryYear(e.target.value)}
+                  placeholder="25"
+                  maxLength={4}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cvv">CVV</Label>
-                <Input id="cvv" placeholder="123" maxLength={3} required />
+                <Input
+                  id="cvv"
+                  value={cvv}
+                  onChange={(e) => setCvv(e.target.value)}
+                  placeholder="123"
+                  maxLength={3}
+                  required
+                />
               </div>
             </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
           </div>
         </div>
 
-        {/* Order Summary */}
         <div className="lg:col-span-1">
           <div className="bg-secondary/20 rounded-lg p-6 sticky top-24">
             <h2 className="font-serif text-2xl mb-6">Resumen del Pedido</h2>
@@ -150,7 +293,6 @@ export function CheckoutForm() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
-                    {/* Size and Color Details */}
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       {item.selectedSize && (
                         <span className="text-[10px] text-muted-foreground">
