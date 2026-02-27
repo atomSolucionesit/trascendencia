@@ -1,4 +1,4 @@
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { CheckCircle } from "lucide-react"

@@ -1,9 +1,30 @@
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
-import { products } from "@/lib/products"
+import { productService } from "@/services/nexus/products"
+import type { Product } from "@/lib/types"
+import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
 
-export default function ProductsPage() {
+export const revalidate = 0
+
+async function loadProducts(): Promise<Product[]> {
+  try {
+    const response = await productService.getProducts(1, 20)
+    const candidates = extractProductsArray(response)
+
+    return candidates
+      .map((item) => normalizeProduct(item))
+      .filter((item): item is Product => item !== null)
+  } catch (error) {
+    console.error("Error fetching products:", error)
+    return []
+  }
+}
+
+export default async function ProductsPage() {
+  const products = await loadProducts()
+  const hasProducts = products.length > 0
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -18,11 +39,17 @@ export default function ProductsPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {hasProducts ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground">Aun no hay productos disponibles.</p>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

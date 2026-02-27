@@ -1,34 +1,51 @@
 import { notFound } from "next/navigation"
-import { getProductsByCategory } from "@/lib/products"
-import { Header } from "@/components/header"
+import Header from "@/components/header-with-data"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
+import { productService } from "@/services/nexus/products"
+import type { Product } from "@/lib/types"
+import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
 
-const categories = {
-  collares: { name: "Collares", description: "Piezas elegantes para adornar tu cuello" },
-  anillos: { name: "Anillos", description: "Símbolos de amor y compromiso" },
-  aretes: { name: "Aretes", description: "Detalles que iluminan tu rostro" },
-  pulseras: { name: "Pulseras", description: "Elegancia en cada movimiento" },
+async function loadCategoryProducts(categoryId: string): Promise<Product[]> {
+  try {
+    const response = await productService.getProducts(1, 40, { categoryIds: categoryId })
+    const candidates = extractProductsArray(response)
+    return candidates
+      .map((item) => normalizeProduct(item))
+      .filter((item): item is Product => item !== null)
+  } catch (error) {
+    console.error("Error fetching category products:", error)
+    return []
+  }
 }
 
-export const dynamicParams = false
-
-export function generateStaticParams() {
-  return Object.keys(categories).map((category) => ({
-    category,
-  }))
+async function loadCategoryInfo(categoryId: string) {
+  try {
+    const category = await productService.getProductByCategory(categoryId)
+    return category
+  } catch (error) {
+    console.error("Error fetching category info:", error)
+    return null
+  }
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
-  const { category } = await params
-  const categoryKey = category as keyof typeof categories
-  const categoryInfo = categories[categoryKey]
+export const revalidate = 0
+
+export default async function CategoryPage({
+  params,
+}: {
+  params: Promise<{ category: string }> | { category: string }
+}) {
+  const resolvedParams = await Promise.resolve(params)
+  const categoryId = resolvedParams.category
+
+  const [categoryInfo, products] = await Promise.all([loadCategoryInfo(categoryId), loadCategoryProducts(categoryId)])
 
   if (!categoryInfo) {
     notFound()
   }
 
-  const products = getProductsByCategory(categoryKey)
+  const hasProducts = products.length > 0
 
   return (
     <div className="min-h-screen">
@@ -37,10 +54,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-4">{categoryInfo.name}</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">{categoryInfo.description}</p>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              {categoryInfo.description || "Productos disponibles en esta categoria."}
+            </p>
           </div>
 
-          {products.length > 0 ? (
+          {hasProducts ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {products.map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -48,7 +67,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-muted-foreground">No hay productos disponibles en esta categoría</p>
+              <p className="text-muted-foreground">No hay productos disponibles en esta categoria.</p>
             </div>
           )}
         </div>

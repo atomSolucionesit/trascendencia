@@ -1,17 +1,34 @@
-"use client"
-
 import Link from "next/link"
 import { ProductCard } from "./product-card"
 import { Button } from "./ui/button"
-import { products } from "@/lib/products"
+import type { Product } from "@/lib/types"
+import { productService } from "@/services/nexus/products"
+import { extractProductsArray, normalizeProduct, toProductTimestamp } from "@/lib/normalizers/product"
 
-// Seleccionar productos nuevos de los productos reales
-const newProducts = products.slice(0, 4).map((product) => ({
-  ...product,
-  isNew: true,
-}))
+async function loadNewProducts(): Promise<Product[]> {
+  try {
+    const response = await productService.getLatestProducts(4)
+    const candidates = extractProductsArray(response)
 
-export function NewArrivals() {
+    return candidates
+      .map((item) => {
+        const normalized = normalizeProduct(item)
+        return { product: normalized ? { ...normalized, isNew: true } : null, ts: toProductTimestamp(item) }
+      })
+      .filter((entry) => entry.product !== null)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 4)
+      .map((entry) => entry.product as Product)
+  } catch (error) {
+    console.error("Error fetching new products:", error)
+    return []
+  }
+}
+
+export async function NewArrivals() {
+  const newProducts = await loadNewProducts()
+  const hasProducts = newProducts.length > 0
+
   return (
     <section className="py-12 md:py-16 lg:py-24 px-4 sm:px-6 bg-accent">
       <div className="max-w-7xl mx-auto">
@@ -20,26 +37,32 @@ export function NewArrivals() {
             Lo Nuevo
           </h2>
           <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
-            Descubre nuestras últimas creaciones, diseñadas para capturar la esencia de este momento
+            Descubre nuestras ultimas creaciones, diseñadas para capturar la esencia de este momento
           </p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-8 md:mb-12">
-          {newProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+          {hasProducts ? (
+            newProducts.map((product) => <ProductCard key={product.id} product={product} />)
+          ) : (
+            <p className="col-span-full text-center text-muted-foreground text-sm md:text-base">
+              Aun no hay productos nuevos disponibles.
+            </p>
+          )}
         </div>
 
-        <div className="text-center">
-          <Button
-            variant="outline"
-            size="lg"
-            className="border-foreground text-foreground hover:bg-foreground hover:text-background bg-transparent text-xs sm:text-sm"
-            asChild
-          >
-            <Link href="/productos">Ver Toda la Colección</Link>
-          </Button>
-        </div>
+        {hasProducts && (
+          <div className="text-center">
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-foreground text-foreground hover:bg-foreground hover:text-background bg-transparent text-xs sm:text-sm"
+              asChild
+            >
+              <Link href="/productos">Ver Toda la Coleccion</Link>
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   )
