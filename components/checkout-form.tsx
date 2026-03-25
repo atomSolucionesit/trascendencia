@@ -72,6 +72,7 @@ export function CheckoutForm() {
         subTotal: total,
         taxAmount: 0,
         status: "PENDING",
+        origin: "TIENDA",
         receiptTypeId: 1,
         documentTypeId: 1,
         currencyId: 1,

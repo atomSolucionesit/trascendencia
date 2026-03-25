@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXUS_API_URL
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || process.env.NEXUS_API_KEY
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+const COMPANY_TOKEN = process.env.NEXT_PUBLIC_COMPANY_TOKEN
 const PAYWAY_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYWAY_PUBLIC_KEY || process.env.PAYWAY_PUBLIC_KEY
 
 export type PaywayPaymentPayload = {
@@ -29,9 +29,13 @@ export async function createPaywayPayment(payload: PaywayPaymentPayload) {
     throw new Error("NEXT_PUBLIC_API_URL no configurado")
   }
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (API_KEY) {
-    headers.Authorization = `Bearer ${API_KEY}`
+  if (!COMPANY_TOKEN) {
+    throw new Error("NEXT_PUBLIC_COMPANY_TOKEN no configurado")
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${COMPANY_TOKEN}`,
   }
 
   const url = API_URL.endsWith("/") ? `${API_URL}payway/payment` : `${API_URL}/payway/payment`
