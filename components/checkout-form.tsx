@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
-import { buildSaleId, createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
+import { createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
 import { createSale, updateSaleStatus } from "@/services/sales"
 
 const getColorValue = (color: string): string => {
@@ -44,13 +44,14 @@ export function CheckoutForm() {
   const [docNumber, setDocNumber] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [saleId, setSaleId] = useState<string | null>(null)
 
   const shippingCost = total >= 150 ? 0 : 15
   const finalTotal = total + shippingCost
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    let createdSaleId: string | null = null
+
     setIsProcessing(true)
     setError(null)
     setSuccessMessage(null)
@@ -102,7 +103,7 @@ export function CheckoutForm() {
       if (!saleIdentifier) {
         throw new Error("No se pudo obtener el ID de la venta")
       }
-      setSaleId(String(saleIdentifier))
+      createdSaleId = String(saleIdentifier)
 
       const tokenResponse = await createPaywayToken({
         card_number: cardNumber.replace(/\s+/g, ""),
@@ -117,14 +118,11 @@ export function CheckoutForm() {
       })
 
       const token = tokenResponse.id
-      const saleId = buildSaleId()
-
-      const amountInCents = Math.round(finalTotal * 100)
 
       const paymentResponse = await createPaywayPayment({
         token,
-        amount: amountInCents,
-        saleId: String(saleIdentifier),
+        amount: finalTotal,
+        saleId: createdSaleId,
       })
 
       if (!paymentResponse.success) {
@@ -143,9 +141,9 @@ export function CheckoutForm() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al procesar el pago"
       setError(message)
-      if (saleId) {
+      if (createdSaleId) {
         try {
-          await updateSaleStatus(saleId, { status: "FAILED" })
+          await updateSaleStatus(createdSaleId, { status: "FAILED" })
         } catch (e) {
           console.error("No se pudo actualizar la venta a FAILED", e)
         }
