@@ -11,6 +11,7 @@ export type RawProduct = Partial<Product> & {
   inStock?: boolean | null
   sizes?: string[] | null
   colors?: string[] | null
+  purchaseInfo?: Product["purchaseInfo"] | null
   images?: Array<{ url?: string } | string> | null
   CategoryProduct?: Array<{ category?: { name?: string } }>
   createdAt?: string | null
@@ -64,6 +65,7 @@ export const normalizeProduct = (item: RawProduct): Product | null => {
     inStock: item?.inStock ?? true,
     sizes: Array.isArray(item?.sizes) ? item.sizes : [],
     colors: Array.isArray(item?.colors) ? item.colors : [],
+    purchaseInfo: item?.purchaseInfo ?? undefined,
   }
 }
 

@@ -8,6 +8,12 @@ export interface Product {
   inStock: boolean
   sizes?: string[]
   colors?: string[]
+  purchaseInfo?: {
+    shipping?: string
+    returns?: string
+    warranty?: string
+    packaging?: string
+  }
 }
 
 export interface CartItem extends Product {

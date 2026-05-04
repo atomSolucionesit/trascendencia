@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useCart } from "@/contexts/cart-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Product } from "@/lib/types"
-import { Check, ShoppingBag, ArrowLeft, Heart } from "lucide-react"
+import { Check, ShoppingBag, ArrowLeft, Heart, Truck, RefreshCw, ShieldCheck, Package } from "lucide-react"
 
 interface ProductDetailProps {
   product: Product
@@ -211,25 +211,41 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </div>
 
             <div className="space-y-3 md:space-y-4 pt-6 border-t border-border">
-              <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground mb-3">
-                Informacion de Compra
+              <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground mb-3 font-medium">
+                Información de Compra
               </h3>
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <div className="flex items-start gap-3">
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Envio gratuito en compras superiores a $150</p>
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3 group/item transition-colors hover:text-foreground">
+                  <div className="p-2 rounded-full bg-secondary/50 group-hover/item:bg-secondary transition-colors">
+                    <Truck className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="leading-relaxed">
+                    {product.purchaseInfo?.shipping || "Envío gratuito en compras superiores a $150"}
+                  </p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Devoluciones gratuitas dentro de 30 dias</p>
+                <div className="flex items-center gap-3 group/item transition-colors hover:text-foreground">
+                  <div className="p-2 rounded-full bg-secondary/50 group-hover/item:bg-secondary transition-colors">
+                    <RefreshCw className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="leading-relaxed">
+                    {product.purchaseInfo?.returns || "Devoluciones gratuitas dentro de 30 días"}
+                  </p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Garantia de autenticidad y calidad</p>
+                <div className="flex items-center gap-3 group/item transition-colors hover:text-foreground">
+                  <div className="p-2 rounded-full bg-secondary/50 group-hover/item:bg-secondary transition-colors">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="leading-relaxed">
+                    {product.purchaseInfo?.warranty || "Garantía de autenticidad y calidad"}
+                  </p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
-                  <p className="leading-relaxed">Embalaje elegante incluido</p>
+                <div className="flex items-center gap-3 group/item transition-colors hover:text-foreground">
+                  <div className="p-2 rounded-full bg-secondary/50 group-hover/item:bg-secondary transition-colors">
+                    <Package className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="leading-relaxed">
+                    {product.purchaseInfo?.packaging || "Embalaje elegante incluido"}
+                  </p>
                 </div>
               </div>
             </div>
