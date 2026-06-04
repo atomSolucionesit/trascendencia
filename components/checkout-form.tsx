@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/contexts/cart-context"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
 import { createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
 import { createSale, updateSaleStatus } from "@/services/sales"
+import { getEcommercePaymentDiscounts, type PaymentDiscount } from "@/services/nexus/payment-discounts"
 
 const getColorValue = (color: string): string => {
   if (color.startsWith("#")) {
@@ -32,6 +33,28 @@ const getColorValue = (color: string): string => {
   return colorMap[color.toLowerCase()] || color
 }
 
+const CARD_PAYMENT_KEY = "payway-card"
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
+
+const isCardPaymentName = (name: string) => {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+
+  return ["tarjeta", "card", "payway", "credito", "debito", "visa", "mastercard"].some((term) =>
+    normalized.includes(term),
+  )
+}
+
+type CheckoutPaymentOption = {
+  key: string
+  label: string
+  type: "card" | "manual"
+  discount?: PaymentDiscount
+}
+
 export function CheckoutForm() {
   const router = useRouter()
   const { items, total, clearCart } = useCart()
@@ -44,9 +67,40 @@ export function CheckoutForm() {
   const [docNumber, setDocNumber] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [paymentDiscounts, setPaymentDiscounts] = useState<PaymentDiscount[]>([])
+  const [selectedPaymentKey, setSelectedPaymentKey] = useState(CARD_PAYMENT_KEY)
 
   const shippingCost = total >= 150 ? 0 : 15
-  const finalTotal = total + shippingCost
+  const baseTotal = roundMoney(total + shippingCost)
+  const paymentOptions = useMemo<CheckoutPaymentOption[]>(() => {
+    const activeDiscounts = paymentDiscounts.filter(
+      (discount) => discount.isActive && discount.isEcommerceEnabled && discount.percentage !== 0,
+    )
+    const cardDiscount = activeDiscounts.find((discount) => isCardPaymentName(discount.paymentTypeName))
+    const manualDiscounts = activeDiscounts.filter((discount) => !isCardPaymentName(discount.paymentTypeName))
+
+    return [
+      {
+        key: CARD_PAYMENT_KEY,
+        label: "Tarjeta",
+        type: "card",
+        discount: cardDiscount,
+      },
+      ...manualDiscounts.map((discount) => ({
+        key: `payment-${discount.id}`,
+        label: discount.paymentTypeName,
+        type: "manual" as const,
+        discount,
+      })),
+    ]
+  }, [paymentDiscounts])
+  const selectedPayment = paymentOptions.find((option) => option.key === selectedPaymentKey) ?? paymentOptions[0]
+  const paymentAdjustmentPercentage = selectedPayment?.discount?.percentage ?? 0
+  const paymentAdjustmentAmount = roundMoney((baseTotal * paymentAdjustmentPercentage) / 100)
+  const finalTotal = roundMoney(Math.max(baseTotal + paymentAdjustmentAmount, 0))
+  const hasPaymentAdjustment = paymentAdjustmentAmount !== 0
+  const selectedPaymentTypeId = selectedPayment?.discount?.paymentTypeId ?? null
+  const isCardPayment = selectedPayment?.type === "card"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,14 +111,14 @@ export function CheckoutForm() {
     setSuccessMessage(null)
 
     try {
-      if (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv) {
+      if (isCardPayment && (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv)) {
         throw new Error("Completa los datos de la tarjeta")
       }
 
       const normalizedMonth = expiryMonth.replace(/\D/g, "").padStart(2, "0").slice(-2)
       const normalizedYear = expiryYear.replace(/\D/g, "").slice(-2).padStart(2, "0")
 
-      if (normalizedMonth.length !== 2 || normalizedYear.length !== 2) {
+      if (isCardPayment && (normalizedMonth.length !== 2 || normalizedYear.length !== 2)) {
         throw new Error("Formato de expiración inválido")
       }
 
@@ -83,8 +137,15 @@ export function CheckoutForm() {
           isCredit: true,
           date: new Date().toISOString(),
           dueDate: new Date().toISOString(),
-          outstandingBalance: 0,
-          details: [],
+          outstandingBalance: finalTotal,
+          details: selectedPaymentTypeId
+            ? [
+                {
+                  paymentTypeId: selectedPaymentTypeId,
+                  amount: baseTotal,
+                },
+              ]
+            : [],
         },
         details: items.map((item) => ({
           productId: item.id,
@@ -105,6 +166,13 @@ export function CheckoutForm() {
         throw new Error("No se pudo obtener el ID de la venta")
       }
       createdSaleId = String(saleIdentifier)
+
+      if (!isCardPayment) {
+        setSuccessMessage("Pedido registrado")
+        clearCart()
+        router.push("/confirmacion")
+        return
+      }
 
       const tokenResponse = await createPaywayToken({
         card_number: cardNumber.replace(/\s+/g, ""),
@@ -160,6 +228,24 @@ export function CheckoutForm() {
     }
   }, [items.length, router])
 
+  useEffect(() => {
+    let isMounted = true
+
+    getEcommercePaymentDiscounts()
+      .then((discounts) => {
+        if (isMounted) {
+          setPaymentDiscounts(discounts)
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching ecommerce payment discounts:", error)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   if (items.length === 0) {
     return null
   }
@@ -213,21 +299,64 @@ export function CheckoutForm() {
               <h2 className="font-serif text-2xl">Información de Pago</h2>
               <Lock className="w-4 h-4 text-muted-foreground" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cardName">Nombre en la Tarjeta</Label>
-              <Input id="cardName" value={cardName} onChange={(e) => setCardName(e.target.value)} required />
+            <div className="space-y-3">
+              <Label>Forma de pago</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {paymentOptions.map((option) => {
+                  const isSelected = option.key === selectedPaymentKey
+                  const percentage = option.discount?.percentage ?? 0
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setSelectedPaymentKey(option.key)}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        isSelected
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-background hover:border-foreground/50"
+                      }`}
+                    >
+                      <span className="block text-sm font-medium">{option.label}</span>
+                      <span className={`mt-1 block text-xs ${isSelected ? "text-background/75" : "text-muted-foreground"}`}>
+                        {percentage
+                          ? `${percentage > 0 ? "Incremento" : "Descuento"} ${percentage > 0 ? "+" : ""}${percentage}%`
+                          : option.type === "card"
+                            ? "Pago online con tarjeta"
+                            : "Pago a coordinar"}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div className="space-y-2">
+            {!isCardPayment && (
+              <div className="rounded-lg border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
+                El pedido quedara registrado para coordinar el pago con {selectedPayment.label}. No se solicitaran datos de tarjeta.
+              </div>
+            )}
+            <div className={isCardPayment ? "space-y-2" : "hidden"}>
+              <Label htmlFor="cardName">Nombre en la Tarjeta</Label>
+              <Input
+                id="cardName"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                required={isCardPayment}
+                disabled={!isCardPayment}
+              />
+            </div>
+            <div className={isCardPayment ? "space-y-2" : "hidden"}>
               <Label htmlFor="docNumber">Documento (DNI)</Label>
               <Input
                 id="docNumber"
                 value={docNumber}
                 onChange={(e) => setDocNumber(e.target.value)}
                 placeholder="12345678"
-                required
+                required={isCardPayment}
+                disabled={!isCardPayment}
               />
             </div>
-            <div className="space-y-2">
+            <div className={isCardPayment ? "space-y-2" : "hidden"}>
               <Label htmlFor="cardNumber">Número de Tarjeta</Label>
               <div className="relative">
                 <Input
@@ -235,12 +364,13 @@ export function CheckoutForm() {
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
                   placeholder="1234 5678 9012 3456"
-                  required
+                  required={isCardPayment}
+                  disabled={!isCardPayment}
                 />
                 <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className={isCardPayment ? "grid grid-cols-3 gap-4" : "hidden"}>
               <div className="space-y-2">
                 <Label htmlFor="expiryMonth">Mes (MM)</Label>
                 <Input
@@ -249,7 +379,8 @@ export function CheckoutForm() {
                   onChange={(e) => setExpiryMonth(e.target.value)}
                   placeholder="12"
                   maxLength={2}
-                  required
+                  required={isCardPayment}
+                  disabled={!isCardPayment}
                 />
               </div>
               <div className="space-y-2">
@@ -260,7 +391,8 @@ export function CheckoutForm() {
                   onChange={(e) => setExpiryYear(e.target.value)}
                   placeholder="25"
                   maxLength={4}
-                  required
+                  required={isCardPayment}
+                  disabled={!isCardPayment}
                 />
               </div>
               <div className="space-y-2">
@@ -271,7 +403,8 @@ export function CheckoutForm() {
                   onChange={(e) => setCvv(e.target.value)}
                   placeholder="123"
                   maxLength={3}
-                  required
+                  required={isCardPayment}
+                  disabled={!isCardPayment}
                 />
               </div>
             </div>
@@ -335,6 +468,20 @@ export function CheckoutForm() {
                 <span className="text-muted-foreground">Envío</span>
                 <span>{shippingCost === 0 ? "Gratis" : `$${shippingCost.toFixed(2)}`}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Forma de pago</span>
+                <span>{selectedPayment.label}</span>
+              </div>
+              {hasPaymentAdjustment && (
+                <div className="flex justify-between text-sm">
+                  <span className={paymentAdjustmentAmount < 0 ? "text-green-600" : "text-destructive"}>
+                    {paymentAdjustmentAmount < 0 ? "Descuento por pago" : "Incremento por pago"}
+                  </span>
+                  <span className={paymentAdjustmentAmount < 0 ? "text-green-600" : "text-destructive"}>
+                    {paymentAdjustmentAmount < 0 ? "-" : "+"}${Math.abs(paymentAdjustmentAmount).toFixed(2)}
+                  </span>
+                </div>
+              )}
               <div className="border-t border-border pt-3">
                 <div className="flex justify-between font-medium text-lg">
                   <span>Total</span>
