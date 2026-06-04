@@ -46,21 +46,34 @@ export function CartContent() {
     <div className="grid lg:grid-cols-3 gap-12">
       {/* Cart Items */}
       <div className="lg:col-span-2 space-y-6">
-        {items.map((item) => (
-          <div key={item.id} className="flex gap-6 pb-6 border-b border-border">
-            <div className="relative w-24 h-32 bg-secondary/30 rounded overflow-hidden flex-shrink-0">
-              <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-            </div>
+        {items.map((item) => {
+          const cartKey = item.cartKey ?? item.id
+          return (
+            <div key={cartKey} className="flex gap-6 pb-6 border-b border-border">
+              <div className="relative w-24 h-32 bg-secondary/30 rounded overflow-hidden flex-shrink-0">
+                <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+              </div>
 
-            <div className="flex-1 flex flex-col justify-between">
-              <div>
-                <Link href={`/productos/${item.id}`}>
-                  <h3 className="font-serif text-xl mb-1 hover:text-muted-foreground transition-colors">{item.name}</h3>
-                </Link>
-                <p className="text-sm text-muted-foreground uppercase mb-2">{item.category}</p>
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <Link href={`/productos/${item.id}`}>
+                    <h3 className="font-serif text-xl mb-1 hover:text-muted-foreground transition-colors">{item.name}</h3>
+                  </Link>
+                  <p className="text-sm text-muted-foreground uppercase mb-2">{item.category}</p>
                 
-                {/* Size and Color Details */}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  {item.selectedVariantName && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-medium">Variante:</span>
+                      <span className="px-2 py-0.5 border border-border rounded">{item.selectedVariantName}</span>
+                    </span>
+                  )}
+                  {item.selectedVariantOptions?.map((option) => (
+                    <span key={`${cartKey}-${option.groupId}`} className="flex items-center gap-1.5">
+                      <span className="font-medium">{option.groupName || "Opcion"}:</span>
+                      <span className="px-2 py-0.5 border border-border rounded">{option.optionName}</span>
+                    </span>
+                  ))}
                   {item.selectedSize && (
                     <span className="flex items-center gap-1.5">
                       <span className="font-medium">Talla:</span>
@@ -86,7 +99,7 @@ export function CartContent() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8 bg-transparent"
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    onClick={() => updateQuantity(cartKey, item.quantity - 1)}
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
@@ -95,7 +108,7 @@ export function CartContent() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8 bg-transparent"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => updateQuantity(cartKey, item.quantity + 1)}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -103,14 +116,15 @@ export function CartContent() {
 
                 <div className="flex items-center gap-4">
                   <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(item.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(cartKey)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Order Summary */}

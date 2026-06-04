@@ -88,6 +88,7 @@ export function CheckoutForm() {
         },
         details: items.map((item) => ({
           productId: item.id,
+          productVariantId: item.selectedVariantId ?? null,
           quantity: item.quantity,
           price: item.price,
           discount: 0,
@@ -285,7 +286,7 @@ export function CheckoutForm() {
 
             <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-3">
+                <div key={item.cartKey ?? item.id} className="flex gap-3">
                   <div className="relative w-16 h-20 bg-secondary/30 rounded overflow-hidden flex-shrink-0">
                     <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
                   </div>
@@ -293,6 +294,16 @@ export function CheckoutForm() {
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {item.selectedVariantName && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Variante: <span className="font-medium">{item.selectedVariantName}</span>
+                        </span>
+                      )}
+                      {item.selectedVariantOptions?.map((option) => (
+                        <span key={`${item.cartKey ?? item.id}-${option.groupId}`} className="text-[10px] text-muted-foreground">
+                          {option.groupName || "Opcion"}: <span className="font-medium">{option.optionName}</span>
+                        </span>
+                      ))}
                       {item.selectedSize && (
                         <span className="text-[10px] text-muted-foreground">
                           Talla: <span className="font-medium">{item.selectedSize}</span>
