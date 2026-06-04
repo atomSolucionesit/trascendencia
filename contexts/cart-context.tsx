@@ -1,9 +1,19 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import type { Product, CartItem, CartContextType } from "@/lib/types"
+import type { Product, CartItem, CartContextType, ProductVariant } from "@/lib/types"
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
+
+const getCartItemKey = (
+  productId: string,
+  selectedSize?: string | null,
+  selectedColor?: string | null,
+  selectedVariantId?: string | null,
+) => `${productId}:${selectedVariantId || "base"}:${selectedSize || "no-size"}:${selectedColor || "no-color"}`
+
+const resolveCartItemKey = (item: CartItem) =>
+  item.cartKey ?? getCartItemKey(item.id, item.selectedSize, item.selectedColor, item.selectedVariantId)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
@@ -21,41 +31,55 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("trascendencia-cart", JSON.stringify(items))
   }, [items])
 
-  const addToCart = (product: Product, selectedSize?: string | null, selectedColor?: string | null) => {
+  const addToCart = (
+    product: Product,
+    selectedSize?: string | null,
+    selectedColor?: string | null,
+    selectedVariant?: ProductVariant | null,
+  ) => {
+    const selectedVariantId = selectedVariant?.id ?? null
+    const cartKey = getCartItemKey(product.id, selectedSize, selectedColor, selectedVariantId)
+
     setItems((currentItems) => {
-      // Check if item with same id, size, and color already exists
-      const existingItem = currentItems.find(
-        (item) =>
-          item.id === product.id &&
-          item.selectedSize === selectedSize &&
-          item.selectedColor === selectedColor
-      )
+      const existingItem = currentItems.find((item) => resolveCartItemKey(item) === cartKey)
 
       if (existingItem) {
         return currentItems.map((item) =>
-          item.id === product.id &&
-          item.selectedSize === selectedSize &&
-          item.selectedColor === selectedColor
+          resolveCartItemKey(item) === cartKey
             ? { ...item, quantity: item.quantity + 1 }
             : item
         )
       }
 
-      return [...currentItems, { ...product, quantity: 1, selectedSize, selectedColor }]
+      return [
+        ...currentItems,
+        {
+          ...product,
+          cartKey,
+          quantity: 1,
+          selectedSize,
+          selectedColor,
+          selectedVariantId,
+          selectedVariantName: selectedVariant?.name ?? null,
+          selectedVariantOptions: selectedVariant?.selections ?? [],
+        },
+      ]
     })
   }
 
-  const removeFromCart = (productId: string) => {
-    setItems((currentItems) => currentItems.filter((item) => item.id !== productId))
+  const removeFromCart = (cartKey: string) => {
+    setItems((currentItems) => currentItems.filter((item) => resolveCartItemKey(item) !== cartKey && item.id !== cartKey))
   }
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (cartKey: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId)
+      removeFromCart(cartKey)
       return
     }
 
-    setItems((currentItems) => currentItems.map((item) => (item.id === productId ? { ...item, quantity } : item)))
+    setItems((currentItems) =>
+      currentItems.map((item) => (resolveCartItemKey(item) === cartKey || item.id === cartKey ? { ...item, quantity } : item)),
+    )
   }
 
   const clearCart = () => {

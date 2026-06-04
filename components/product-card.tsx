@@ -31,6 +31,13 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (product.hasVariants) {
+      toast({
+        title: "Selecciona una variante",
+        description: "Ingresa al producto para elegir la combinacion",
+      })
+      return
+    }
     addToCart(product)
     toast({
       title: "Agregado al carrito",

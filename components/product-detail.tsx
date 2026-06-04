@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/contexts/cart-context"
 import { useToast } from "@/hooks/use-toast"
-import type { Product } from "@/lib/types"
+import type { Product, ProductVariant } from "@/lib/types"
 import { Check, ShoppingBag, ArrowLeft, Heart, Truck, RefreshCw, ShieldCheck, Package } from "lucide-react"
 
 interface ProductDetailProps {
@@ -14,13 +14,69 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product }: ProductDetailProps) {
   const [imageError, setImageError] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(product.image || product.images?.[0] || "/placeholder.svg")
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
   const { addToCart } = useCart()
   const { toast } = useToast()
 
+  const variantGroups = product.hasVariants ? product.variantGroups ?? [] : []
+  const variants = product.hasVariants ? product.variants ?? [] : []
+  const hasVariantOptions = variantGroups.length > 0 && variants.length > 0
+
+  const selectedVariant = useMemo<ProductVariant | null>(() => {
+    if (!hasVariantOptions) return null
+    const selectedOptionIds = Object.values(selectedOptions)
+    if (selectedOptionIds.length !== variantGroups.length) return null
+
+    return (
+      variants.find(
+        (variant) =>
+          variant.isActive &&
+          selectedOptionIds.every((optionId) => variant.optionIds.includes(optionId)) &&
+          variant.optionIds.length === selectedOptionIds.length,
+      ) ?? null
+    )
+  }, [hasVariantOptions, selectedOptions, variantGroups.length, variants])
+
+  const selectedVariantOptions = selectedVariant?.selections ?? []
+  const variantExtraPrice = selectedVariantOptions.reduce((sum, selection) => {
+    const option = variantGroups
+      .find((group) => group.id === selection.groupId)
+      ?.options.find((groupOption) => groupOption.id === selection.optionId)
+    return sum + (option?.price ?? 0)
+  }, 0)
+  const selectedPrice = product.price + variantExtraPrice
+  const hasCompleteVariantSelection = !hasVariantOptions || Object.keys(selectedOptions).length === variantGroups.length
+  const selectedVariantHasStock = !hasVariantOptions || (!!selectedVariant && selectedVariant.stock > 0)
+
   const handleAddToCart = () => {
-    addToCart(product, selectedSize, selectedColor)
+    if (hasVariantOptions && !hasCompleteVariantSelection) {
+      toast({
+        title: "Selecciona las variantes",
+        description: "Completa todas las opciones antes de agregar el producto al carrito",
+      })
+      return
+    }
+
+    if (hasVariantOptions && !selectedVariant) {
+      toast({
+        title: "Combinacion no disponible",
+        description: "La combinacion seleccionada no esta disponible",
+      })
+      return
+    }
+
+    if (hasVariantOptions && selectedVariant && selectedVariant.stock <= 0) {
+      toast({
+        title: "Sin stock",
+        description: "La variante seleccionada no tiene stock disponible",
+      })
+      return
+    }
+
+    addToCart({ ...product, price: selectedPrice }, selectedSize, selectedColor, selectedVariant)
     toast({
       title: "Agregado al carrito",
       description: `${product.name} ha sido agregado a tu carrito`,
@@ -52,8 +108,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const safeCategory =
     typeof product.category === "string" && product.category ? product.category : "sin categoria"
   const safeName = product.name || "Producto sin nombre"
-  const priceValue = typeof product.price === "number" && Number.isFinite(product.price) ? product.price : 0
-  const imageSrc = imageError ? "/placeholder.svg" : product.image || "/placeholder.svg"
+  const priceValue = typeof selectedPrice === "number" && Number.isFinite(selectedPrice) ? selectedPrice : 0
+  const galleryImages = Array.from(
+    new Set([product.image, ...(product.images ?? [])].filter((image): image is string => !!image)),
+  )
+  const imageSrc = imageError ? "/placeholder.svg" : selectedImage || galleryImages[0] || "/placeholder.svg"
 
   return (
     <section className="py-8 md:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
@@ -89,6 +148,31 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </div>
               )}
             </div>
+            {galleryImages.length > 1 && (
+              <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5">
+                {galleryImages.map((image, index) => {
+                  const isSelected = image === selectedImage
+                  return (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(image)
+                        setImageError(false)
+                      }}
+                      className={`relative aspect-square overflow-hidden rounded-lg border bg-muted transition-all ${
+                        isSelected
+                          ? "border-foreground ring-2 ring-foreground/20"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      aria-label={`Ver imagen ${index + 1} de ${safeName}`}
+                    >
+                      <img src={image} alt={`${safeName} ${index + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col justify-center space-y-6 md:space-y-8">
@@ -106,7 +190,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 {product.inStock ? (
                   <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-green-600">
                     <Check className="w-4 h-4" />
-                    <span>Disponible</span>
+                    <span>
+                      {hasVariantOptions && selectedVariant
+                        ? `Disponible (${selectedVariant.stock})`
+                        : "Disponible"}
+                    </span>
                   </span>
                 ) : (
                   <span className="text-xs sm:text-sm text-destructive">Agotado</span>
@@ -119,6 +207,54 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed text-pretty">
                   {product.description}
                 </p>
+              </div>
+            )}
+
+            {hasVariantOptions && (
+              <div className="space-y-5 pt-6 border-t border-border">
+                {variantGroups.map((group) => (
+                  <div key={group.id} className="space-y-2">
+                    <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">{group.name}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {group.options.map((option) => {
+                        const isSelected = selectedOptions[group.id] === option.id
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() =>
+                              setSelectedOptions((current) => ({
+                                ...current,
+                                [group.id]: option.id,
+                              }))
+                            }
+                            className={`min-h-9 px-3 py-2 text-xs font-medium border transition-all ${
+                              isSelected
+                                ? "bg-foreground text-background border-foreground"
+                                : "bg-background text-foreground border-border hover:border-foreground/50"
+                            }`}
+                          >
+                            <span>{option.name}</span>
+                            {option.price ? (
+                              <span className="ml-2 opacity-70">+${option.price.toFixed(2)}</span>
+                            ) : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {hasCompleteVariantSelection && selectedVariant && (
+                  <p className="text-sm text-muted-foreground">
+                    Variante: <span className="text-foreground">{selectedVariant.name}</span>
+                    <span className={selectedVariant.stock > 0 ? "ml-2 text-green-600" : "ml-2 text-destructive"}>
+                      Stock: {selectedVariant.stock}
+                    </span>
+                  </p>
+                )}
+                {hasCompleteVariantSelection && !selectedVariant && (
+                  <p className="text-sm text-destructive">La combinacion seleccionada no esta disponible.</p>
+                )}
               </div>
             )}
 
@@ -183,7 +319,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <div className="flex justify-between">
                   <span className="font-medium">Disponibilidad:</span>
                   <span className={product.inStock ? "text-green-600" : "text-destructive"}>
-                    {product.inStock ? "En Stock" : "Agotado"}
+                    {hasVariantOptions && selectedVariant
+                      ? selectedVariant.stock > 0
+                        ? `En Stock (${selectedVariant.stock})`
+                        : "Agotado"
+                      : product.inStock
+                        ? "En Stock"
+                        : "Agotado"}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -198,10 +340,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 size="lg"
                 className="w-full sm:w-auto px-8 md:px-12 text-xs sm:text-sm tracking-wide"
                 onClick={handleAddToCart}
-                disabled={!product.inStock}
+                disabled={!product.inStock || !hasCompleteVariantSelection || !selectedVariantHasStock}
               >
                 <ShoppingBag className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                {product.inStock ? "Agregar al Carrito" : "No Disponible"}
+                {!product.inStock || (hasVariantOptions && hasCompleteVariantSelection && !selectedVariantHasStock)
+                  ? "No Disponible"
+                  : hasVariantOptions && !hasCompleteVariantSelection
+                    ? "Selecciona opciones"
+                    : "Agregar al Carrito"}
               </Button>
 
               {product.inStock && (
