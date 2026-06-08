@@ -25,6 +25,10 @@ jobs:
 
       - name: Build Next.js Application
         run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api' }}
+          NEXT_PUBLIC_COMPANY_TOKEN: ${{ secrets.NEXT_PUBLIC_COMPANY_TOKEN || '2be3d1b6-39d8-4ac0-916d-148f63214b42' }}
+          NEXT_PUBLIC_COMPANY_ID: ${{ secrets.NEXT_PUBLIC_COMPANY_ID || '26' }}
 
       - name: Prepare Deployment Bundle
         run: |
