@@ -47,6 +47,11 @@ jobs:
             cp -r .next/static deploy/.next/
           fi
           
+          # Copy .htaccess if it exists
+          if [ -f ".htaccess" ]; then
+            cp .htaccess deploy/
+          fi
+          
           # Create tmp folder and restart.txt to trigger Passenger restart in Plesk
           mkdir -p deploy/tmp
           touch deploy/tmp/restart.txt

@@ -1,0 +1,22 @@
+# .htaccess para Plesk / Apache
+
+RewriteEngine On
+
+# 1. EVITAR BUCLE DE REDIRECCIÓN SSL (Si usas Cloudflare con HTTPS)
+# Si Cloudflare se conecta por HTTP (puerto 80) y tu servidor Plesk fuerza HTTPS, se produce un bucle.
+# Esta regla ayuda a detectar la cabecera de Cloudflare y asegurar la conexión correcta.
+RewriteCond %{HTTP:X-Forwarded-Proto} =https
+RewriteRule ^ - [E=HTTPS:on]
+
+# 2. REDIRECCIONAR AL PUERTO DE NODE (Solo si no estás usando Phusion Passenger)
+# Si ejecutas la aplicación manualmente en un puerto (ej: 3000) en lugar del módulo de Node.js de Plesk:
+# Descomenta las siguientes líneas para que Apache actúe como proxy hacia el puerto 3000:
+# RewriteRule ^$ http://127.0.0.1:3000/ [P,L]
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+
+# 3. COMPRESIÓN GZIP (Recomendado para mejorar la velocidad en Apache)
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json
+</IfModule>
