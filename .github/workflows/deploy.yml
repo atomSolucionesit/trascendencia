@@ -56,17 +56,13 @@ jobs:
           mkdir -p deploy/tmp
           touch deploy/tmp/restart.txt
 
-      - name: Deploy to Plesk via FTP/FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy to Plesk via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
+          server: ${{ secrets.FTP_SERVER }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT || 21 }} # Default to FTP (Port 21)
-          local-dir: ./deploy/
-          server-dir: ${{ secrets.FTP_SERVER_DIR || '/httpdocs/' }}
-          # Exclude files if needed (e.g. .git)
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**/.git*
+          port: ${{ secrets.FTP_PORT || 22 }} # Default to SFTP (Port 22)
+          local_path: './deploy/'
+          remote_path: ${{ secrets.FTP_SERVER_DIR || '/httpdocs/' }}
+          sftp_only: true
