@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { formatPrice } from "@/lib/format-price"
 
 // Helper function to convert color string to CSS value
 const getColorValue = (color: string): string => {
@@ -115,7 +116,7 @@ export function CartContent() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-medium">{formatPrice(item.price * item.quantity)}</p>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(cartKey)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -135,7 +136,7 @@ export function CartContent() {
           <div className="space-y-4 mb-6">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{formatPrice(total)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
@@ -144,14 +145,14 @@ export function CartContent() {
             <div className="border-t border-border pt-4">
               <div className="flex justify-between font-medium text-lg">
                 <span>Total</span>
-                <span>${(total >= 150 ? total : total + 15).toFixed(2)}</span>
+                <span>{formatPrice(total >= 150 ? total : total + 15)}</span>
               </div>
             </div>
           </div>
 
           {total < 150 && (
             <p className="text-xs text-muted-foreground mb-6">
-              Agrega ${(150 - total).toFixed(2)} más para obtener envío gratuito
+              Agrega {formatPrice(150 - total)} más para obtener envío gratuito
             </p>
           )}
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useCart } from "@/contexts/cart-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Product, ProductVariant } from "@/lib/types"
+import { formatPrice } from "@/lib/format-price"
 import { Check, ShoppingBag, ArrowLeft, Heart, Truck, RefreshCw, ShieldCheck, Package } from "lucide-react"
 
 interface ProductDetailProps {
@@ -98,8 +99,38 @@ export function ProductDetail({ product }: ProductDetailProps) {
       white: "#FFFFFF",
       negro: "#000000",
       black: "#000000",
+      azul: "#2563EB",
+      blue: "#2563EB",
+      rojo: "#DC2626",
+      red: "#DC2626",
+      verde: "#16A34A",
+      green: "#16A34A",
+      amarillo: "#FACC15",
+      yellow: "#FACC15",
+      naranja: "#F97316",
+      orange: "#F97316",
+      violeta: "#7C3AED",
+      morado: "#7C3AED",
+      purple: "#7C3AED",
+      marron: "#78350F",
+      brown: "#78350F",
+      gris: "#6B7280",
+      gray: "#6B7280",
+      grey: "#6B7280",
+      beige: "#D6C6A8",
     }
-    return colorMap[color.toLowerCase()] || color
+    const normalizedColor = color.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    return colorMap[normalizedColor] || color
+  }
+
+  const getContrastColor = (color: string): "#000000" | "#FFFFFF" => {
+    const hex = color.replace("#", "")
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#000000"
+
+    const red = Number.parseInt(hex.slice(0, 2), 16)
+    const green = Number.parseInt(hex.slice(2, 4), 16)
+    const blue = Number.parseInt(hex.slice(4, 6), 16)
+    return red * 0.299 + green * 0.587 + blue * 0.114 > 160 ? "#000000" : "#FFFFFF"
   }
 
   const availableSizes = product.sizes && product.sizes.length ? product.sizes : []
@@ -185,7 +216,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               </h1>
               <div className="flex items-baseline gap-4">
                 <p className="text-2xl sm:text-3xl font-light">
-                  {priceValue ? `$${priceValue.toFixed(2)}` : "Precio no disponible"}
+                  {priceValue ? formatPrice(priceValue) : "Precio no disponible"}
                 </p>
                 {product.inStock ? (
                   <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-green-600">
@@ -212,12 +243,16 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
             {hasVariantOptions && (
               <div className="space-y-5 pt-6 border-t border-border">
-                {variantGroups.map((group) => (
-                  <div key={group.id} className="space-y-2">
+                {variantGroups.map((group) => {
+                  const isColorGroup =
+                    group.kind?.toLowerCase() === "color" || group.name.toLowerCase().includes("color")
+
+                  return <div key={group.id} className="space-y-2">
                     <h3 className="text-xs sm:text-sm tracking-widest uppercase text-foreground">{group.name}</h3>
                     <div className="flex flex-wrap gap-2">
                       {group.options.map((option) => {
                         const isSelected = selectedOptions[group.id] === option.id
+                        const optionColor = isColorGroup ? option.colorHex || getColorValue(option.name) : undefined
                         return (
                           <button
                             key={option.id}
@@ -228,22 +263,31 @@ export function ProductDetail({ product }: ProductDetailProps) {
                                 [group.id]: option.id,
                               }))
                             }
-                            className={`min-h-9 px-3 py-2 text-xs font-medium border transition-all ${
-                              isSelected
+                            className={`min-h-9 px-3 py-2 text-xs font-medium border-2 transition-all ${
+                              isColorGroup
+                                ? isSelected
+                                  ? "border-foreground ring-2 ring-foreground/20 ring-offset-2"
+                                  : "border-border hover:border-foreground/60"
+                                : isSelected
                                 ? "bg-foreground text-background border-foreground"
                                 : "bg-background text-foreground border-border hover:border-foreground/50"
                             }`}
+                            style={
+                              optionColor
+                                ? { backgroundColor: optionColor, color: getContrastColor(optionColor) }
+                                : undefined
+                            }
                           >
                             <span>{option.name}</span>
                             {option.price ? (
-                              <span className="ml-2 opacity-70">+${option.price.toFixed(2)}</span>
+                              <span className="ml-2 opacity-70">+{formatPrice(option.price)}</span>
                             ) : null}
                           </button>
                         )
                       })}
                     </div>
                   </div>
-                ))}
+                })}
                 {hasCompleteVariantSelection && selectedVariant && (
                   <p className="text-sm text-muted-foreground">
                     Variante: <span className="text-foreground">{selectedVariant.name}</span>
@@ -330,7 +374,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Precio:</span>
-                  <span>{priceValue ? `$${priceValue.toFixed(2)}` : "No disponible"}</span>
+                  <span>{priceValue ? formatPrice(priceValue) : "No disponible"}</span>
                 </div>
               </div>
             </div>

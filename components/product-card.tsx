@@ -9,6 +9,7 @@ import { useCart } from "@/contexts/cart-context"
 import { useFavorites } from "@/contexts/favorites-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Product } from "@/lib/types"
+import { formatPrice } from "@/lib/format-price"
 
 interface ProductCardProps {
   product: Product & { isNew?: boolean }
@@ -111,7 +112,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="space-y-0.5">
           <p className="text-[10px] sm:text-xs tracking-widest text-muted-foreground uppercase">{categoryLabel}</p>
           <h3 className="font-serif text-sm sm:text-base lg:text-lg leading-tight">{product.name}</h3>
-          <p className="text-xs sm:text-sm">{priceValue ? `$${priceValue.toFixed(2)}` : "Precio no disponible"}</p>
+          <p className="text-xs sm:text-sm">{priceValue ? formatPrice(priceValue) : "Precio no disponible"}</p>
           <p className="text-[10px] sm:text-xs text-green-600 font-medium">Hasta 6 cuotas sin interes</p>
         </div>
       </Link>

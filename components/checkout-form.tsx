@@ -13,6 +13,7 @@ import Image from "next/image"
 import { createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
 import { createSale, updateSaleStatus } from "@/services/sales"
 import { getEcommercePaymentDiscounts, type PaymentDiscount } from "@/services/nexus/payment-discounts"
+import { formatPrice } from "@/lib/format-price"
 
 const getColorValue = (color: string): string => {
   if (color.startsWith("#")) {
@@ -453,7 +454,7 @@ export function CheckoutForm() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium mt-1">${(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm font-medium mt-1">{formatPrice(item.price * item.quantity)}</p>
                   </div>
                 </div>
               ))}
@@ -462,11 +463,11 @@ export function CheckoutForm() {
             <div className="space-y-3 pt-4 border-t border-border">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatPrice(total)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Envío</span>
-                <span>{shippingCost === 0 ? "Gratis" : `$${shippingCost.toFixed(2)}`}</span>
+                <span>{shippingCost === 0 ? "Gratis" : formatPrice(shippingCost)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Forma de pago</span>
@@ -478,14 +479,14 @@ export function CheckoutForm() {
                     {paymentAdjustmentAmount < 0 ? "Descuento por pago" : "Incremento por pago"}
                   </span>
                   <span className={paymentAdjustmentAmount < 0 ? "text-green-600" : "text-destructive"}>
-                    {paymentAdjustmentAmount < 0 ? "-" : "+"}${Math.abs(paymentAdjustmentAmount).toFixed(2)}
+                    {paymentAdjustmentAmount < 0 ? "-" : "+"}{formatPrice(Math.abs(paymentAdjustmentAmount))}
                   </span>
                 </div>
               )}
               <div className="border-t border-border pt-3">
                 <div className="flex justify-between font-medium text-lg">
                   <span>Total</span>
-                  <span>${finalTotal.toFixed(2)}</span>
+                  <span>{formatPrice(finalTotal)}</span>
                 </div>
               </div>
             </div>
