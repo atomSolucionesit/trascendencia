@@ -69,8 +69,6 @@ async function loadCombinations(product: Product): Promise<SuggestionGroupNormal
   }
 }
 
-export const dynamicParams = false
-
 export async function generateStaticParams() {
   try {
     const response = await productService.getProducts(1, 0)

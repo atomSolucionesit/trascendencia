@@ -88,12 +88,12 @@ export function Header({ categories = [] }: HeaderProps) {
               )}
             </div>
 
-            <a href="#nosotros" className="text-sm tracking-wide hover:text-secondary transition-colors">
+            <Link href="/#nosotros" className="text-sm tracking-wide hover:text-secondary transition-colors">
               NOSOTROS
-            </a>
-            <a href="#contacto" className="text-sm tracking-wide hover:text-secondary transition-colors">
+            </Link>
+            <Link href="/#contacto" className="text-sm tracking-wide hover:text-secondary transition-colors">
               CONTACTO
-            </a>
+            </Link>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -153,12 +153,20 @@ export function Header({ categories = [] }: HeaderProps) {
                   ))}
                 </div>
               )}
-              <a href="#nosotros" className="text-sm tracking-wide hover:text-secondary transition-colors">
+              <Link
+                href="/#nosotros"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm tracking-wide hover:text-secondary transition-colors"
+              >
                 NOSOTROS
-              </a>
-              <a href="#contacto" className="text-sm tracking-wide hover:text-secondary transition-colors">
+              </Link>
+              <Link
+                href="/#contacto"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm tracking-wide hover:text-secondary transition-colors"
+              >
                 CONTACTO
-              </a>
+              </Link>
             </div>
           </nav>
         )}

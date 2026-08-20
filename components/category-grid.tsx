@@ -1,15 +1,43 @@
 import Link from "next/link"
 import { categoryService } from "@/services/nexus/categories"
+import { productService } from "@/services/nexus/products"
 import type { Category } from "@/lib/types"
 import { extractCategoriesArray, normalizeCategory } from "@/lib/normalizers/category"
+import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
+
+async function getFirstProductImage(categoryId: string): Promise<string | undefined> {
+  try {
+    const response = await productService.getProducts(1, 1, { categoryIds: categoryId })
+    const firstProduct = extractProductsArray(response)
+      .map((item) => normalizeProduct(item))
+      .find((product) => product !== null)
+
+    const image = firstProduct?.images.find((candidate) => candidate && candidate !== "/placeholder.svg")
+    return image ?? (firstProduct?.image !== "/placeholder.svg" ? firstProduct?.image : undefined)
+  } catch (error) {
+    console.error(`Error fetching image for category ${categoryId}:`, error)
+    return undefined
+  }
+}
 
 export async function fetchCategories(): Promise<Category[]> {
   try {
     const response = await categoryService.getCategories()
     const candidates = extractCategoriesArray(response)
-    return candidates
+    const categories = candidates
       .map((item) => normalizeCategory(item))
       .filter((item): item is Category => item !== null)
+
+    return Promise.all(
+      categories.map(async (category) => {
+        if (category.image) return category
+
+        return {
+          ...category,
+          image: await getFirstProductImage(category.id),
+        }
+      })
+    )
   } catch (error) {
     console.error("Error fetching categories:", error)
     return []
