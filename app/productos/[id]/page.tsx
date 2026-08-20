@@ -69,7 +69,20 @@ async function loadCombinations(product: Product): Promise<SuggestionGroupNormal
   }
 }
 
-export const revalidate = 0
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  try {
+    const response = await productService.getProducts(1, 0)
+    return extractProductsArray(response)
+      .map((item) => normalizeProduct(item))
+      .filter((product): product is Product => product !== null)
+      .map((product) => ({ id: String(product.id) }))
+  } catch (error) {
+    console.error("Error obteniendo productos para el export estatico:", error)
+    return []
+  }
+}
 
 export default async function ProductPage({
   params,

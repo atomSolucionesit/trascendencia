@@ -5,6 +5,8 @@ import { ProductCard } from "@/components/product-card"
 import { productService } from "@/services/nexus/products"
 import type { Product } from "@/lib/types"
 import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
+import { categoryService } from "@/services/nexus/categories"
+import { extractCategoriesArray, normalizeCategory } from "@/lib/normalizers/category"
 
 async function loadCategoryProducts(categoryId: string): Promise<Product[]> {
   try {
@@ -29,7 +31,20 @@ async function loadCategoryInfo(categoryId: string) {
   }
 }
 
-export const revalidate = 0
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  try {
+    const response = await categoryService.getCategories()
+    return extractCategoriesArray(response)
+      .map((item) => normalizeCategory(item))
+      .filter((category) => category !== null)
+      .map((category) => ({ category: String(category.id) }))
+  } catch (error) {
+    console.error("Error obteniendo categorias para el export estatico:", error)
+    return []
+  }
+}
 
 export default async function CategoryPage({
   params,

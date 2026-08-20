@@ -5,8 +5,6 @@ import { productService } from "@/services/nexus/products"
 import type { Product } from "@/lib/types"
 import { extractProductsArray, normalizeProduct } from "@/lib/normalizers/product"
 
-export const revalidate = 0
-
 async function loadProducts(): Promise<Product[]> {
   try {
     const response = await productService.getProducts(1, 20)
