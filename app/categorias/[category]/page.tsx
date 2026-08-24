@@ -31,7 +31,8 @@ async function loadCategoryInfo(categoryId: string) {
   }
 }
 
-export const dynamicParams = false
+export const dynamicParams = true
+export const revalidate = 60 // Revalidar la página cada 60 segundos
 
 export async function generateStaticParams() {
   try {

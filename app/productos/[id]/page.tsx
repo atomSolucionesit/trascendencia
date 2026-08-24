@@ -14,6 +14,8 @@ import {
 } from "@/lib/normalizers/product"
 import { ProductCombinations } from "@/components/product-combinations"
 
+export const revalidate = 60 // Revalidar la página cada 60 segundos para capturar cambios en Nexus
+
 async function loadProduct(id: string): Promise<Product | null> {
   try {
     const response = await productService.getProductById(id)

@@ -6,8 +6,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Genera un sitio completamente estatico en /out, listo para Plesk.
-  output: "export",
+  // Genera un build standalone compatible con el server.js de Plesk.
+  output: "standalone",
   // Cada ruta se exporta como /ruta/index.html. Esto funciona bien tanto en
   // Apache como en nginx y permite abrir directamente una URL interna.
   trailingSlash: true,
