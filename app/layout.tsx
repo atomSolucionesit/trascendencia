@@ -23,9 +23,9 @@ const bodoni = Bodoni_Moda({
 })
 
 export const metadata: Metadata = {
-  title: "Trascendencia - Joyería Elegante",
-  description: "Descubre piezas únicas que trascienden el tiempo",
-    generator: 'v0.app'
+  title: "Trascendencia",
+  description: "Tienda de Diseño",
+    generator: 'favicon.ico'
 }
 
 export default function RootLayout({
