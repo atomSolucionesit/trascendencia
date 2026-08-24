@@ -19,6 +19,8 @@ async function loadProducts(): Promise<Product[]> {
   }
 }
 
+export const revalidate = 60 // Revalidar el catálogo de productos cada 60 segundos
+
 export default async function ProductsPage() {
   const products = await loadProducts()
   const hasProducts = products.length > 0

@@ -8,6 +8,8 @@ import { Newsletter } from "@/components/newsletter"
 import { Footer } from "@/components/footer"
 import { ContactSection } from "@/components/contact-section"
 
+export const revalidate = 60 // Revalidar la página de inicio cada 60 segundos
+
 export default function Home() {
   return (
     <div className="min-h-screen">

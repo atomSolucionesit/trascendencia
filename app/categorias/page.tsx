@@ -3,6 +3,8 @@ import { Footer } from "@/components/footer"
 import Link from "next/link"
 import { fetchCategories } from "@/components/category-grid"
 
+export const revalidate = 60 // Revalidar la lista de colecciones cada 60 segundos
+
 export default async function CategoriesPage() {
   const categories = await fetchCategories()
   const hasCategories = categories.length > 0
