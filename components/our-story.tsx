@@ -7,17 +7,16 @@ export function OurStory() {
             <h2 className="font-display text-3xl sm:text-4xl md:text-5xl text-foreground">Nuestra Historia</h2>
             <div className="space-y-3 md:space-y-4 text-muted-foreground text-sm sm:text-base leading-relaxed">
               <p>
-                Trascendencia nace de la pasión por crear piezas que van más allá de lo material. Cada joya cuenta una
-                historia, captura un momento, y se convierte en un símbolo de los instantes que verdaderamente importan.
+                Trascendencia nace de una historia familiar y de una pasión que se fue construyendo a lo largo de los años.
               </p>
               <p>
-                Inspirados en la belleza atemporal y el diseño minimalista, trabajamos con materiales nobles y técnicas
-                artesanales para crear piezas únicas que acompañan tu viaje personal.
+                Detrás de la marca hay una mujer que durante más de 30 años hizo de la moda su oficio, y una nueva generación que decidió tomar ese legado, transformarlo y darle una identidad propia.
               </p>
               <p>
-                Creemos que la verdadera elegancia reside en la simplicidad, y que cada pieza debe ser tan especial como
-                la persona que la lleva. Por eso, cada creación es cuidadosamente diseñada para trascender tendencias y
-                convertirse en un tesoro para toda la vida.
+                Así nace Trascendencia, un espacio donde conviven experiencia, diseño y una profunda atención por los detalles.
+              </p>
+              <p>
+                Creemos en una forma de vestir que va más allá de las tendencias y busca piezas con identidad, calidad y personalidad. Prendas que nos acompañen hoy y sigan teniendo sentido con el paso del tiempo…
               </p>
             </div>
           </div>

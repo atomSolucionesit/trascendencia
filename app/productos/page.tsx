@@ -35,7 +35,7 @@ export default async function ProductsPage() {
               Todos los Productos
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto">
-              Explora nuestra colección completa de joyería elegante
+              Explora nuestra colección completa de productos seleccionados
             </p>
           </div>
 

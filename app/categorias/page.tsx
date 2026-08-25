@@ -16,7 +16,7 @@ export default async function CategoriesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-4">Colecciones</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Explora nuestras colecciones cuidadosamente curadas de joyeria elegante</p>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Explora nuestras colecciones cuidadosamente seleccionadas</p>
           </div>
 
           {hasCategories ? (

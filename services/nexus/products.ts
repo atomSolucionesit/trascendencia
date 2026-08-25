@@ -13,12 +13,12 @@ interface AxiosError {
 export const getProducts = async (
   page = 1,
   size = 10,
-  extraParams: Record<string, string | number | undefined> = {}
+  extraParams: Record<string, string | number | boolean | undefined> = {}
 ): Promise<any> => {
   try {
     const companyId = await ensureEcommerceCompanyId()
     const response = await api.get(`/products/ecommerce/${companyId}`, {
-      params: { page, size, ...extraParams },
+      params: { page, size, published: true, ...extraParams },
     })
     return response.data.info ?? response.data
   } catch (error) {
@@ -34,6 +34,7 @@ export const getLatestProducts = async (size = 4): Promise<any> => {
       params: {
         page: 1,
         size,
+        published: true,
         orderKey: "createdAt",
         orderBy: "desc",
       },
@@ -48,7 +49,9 @@ export const getLatestProducts = async (size = 4): Promise<any> => {
 export const getFeaturedProducts = async (): Promise<any> => {
   try {
     const companyId = await ensureEcommerceCompanyId()
-    const response = await api.get(`/products/ecommerce/${companyId}/outstanding`)
+    const response = await api.get(`/products/ecommerce/${companyId}/outstanding`, {
+      params: { published: true },
+    })
     return response.data.info ?? response.data
   } catch (error) {
     console.error("Error fetching products:", error)

@@ -38,26 +38,26 @@ export function ContactSection() {
             </p>
             <div className="grid gap-6 sm:grid-cols-2">
               <div>
-                <p className="font-semibold text-sm text-foreground">Showroom</p>
-                <p className="text-sm text-muted-foreground">Av. Libertador 1540, Buenos Aires</p>
+                <p className="font-semibold text-sm text-foreground">Dirección</p>
+                <p className="text-sm text-muted-foreground">Colón 1248, Paso de los Libres, Corrientes</p>
               </div>
               <div>
                 <p className="font-semibold text-sm text-foreground">Horario</p>
-                <p className="text-sm text-muted-foreground">Lunes a sábado · 10 a 19 hs</p>
+                <p className="text-sm text-muted-foreground">Lunes a sábado · 9:00 a 12:30 / 17:30 a 21:00</p>
               </div>
               <div>
                 <p className="font-semibold text-sm text-foreground">Teléfono</p>
-                <a className="text-sm text-secondary-foreground underline-offset-4 hover:underline" href="tel:+541123456789">
-                  +54 11 2345 6789
+                <a className="text-sm text-secondary-foreground underline-offset-4 hover:underline" href="tel:+543772449820">
+                  +54 377 244 9820
                 </a>
               </div>
               <div>
                 <p className="font-semibold text-sm text-foreground">Correo</p>
                 <a
                   className="text-sm text-secondary-foreground underline-offset-4 hover:underline"
-                  href="mailto:hola@trascendencia.com"
+                  href="mailto:trascendenciatienda@gmail.com"
                 >
-                  hola@trascendencia.com
+                  trascendenciatienda@gmail.com
                 </a>
               </div>
             </div>

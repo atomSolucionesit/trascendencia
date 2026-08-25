@@ -1,4 +1,5 @@
 import { Instagram, Facebook, Twitter } from "lucide-react"
+import Link from "next/link"
 
 export function Footer() {
   return (
@@ -18,24 +19,19 @@ export function Footer() {
             <h4 className="text-sm tracking-widest mb-4 uppercase">Tienda</h4>
             <ul className="space-y-2 text-sm text-primary-foreground/80">
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Anillos
-                </a>
+                <Link href="/productos" className="hover:text-primary-foreground transition-colors">
+                  New In
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Collares
-                </a>
+                <Link href="/categorias" className="hover:text-primary-foreground transition-colors">
+                  Colecciones
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Aretes
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Pulseras
-                </a>
+                <Link href="/#lo-nuevo" className="hover:text-primary-foreground transition-colors">
+                  Lo nuevo
+                </Link>
               </li>
             </ul>
           </div>
@@ -45,24 +41,14 @@ export function Footer() {
             <h4 className="text-sm tracking-widest mb-4 uppercase">Información</h4>
             <ul className="space-y-2 text-sm text-primary-foreground/80">
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#nosotros" className="hover:text-primary-foreground transition-colors">
                   Sobre Nosotros
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Envíos y Devoluciones
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
-                  Cuidado de Joyas
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#contacto" className="hover:text-primary-foreground transition-colors">
                   Contacto
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -71,21 +57,15 @@ export function Footer() {
           <div>
             <h4 className="text-sm tracking-widest mb-4 uppercase">Síguenos</h4>
             <div className="flex gap-4">
-              <a href="#" className="hover:text-primary-foreground/60 transition-colors" aria-label="Instagram">
+              <a href="https://www.instagram.com/tdc.tiendadediseno/" className="hover:text-primary-foreground/60 transition-colors" aria-label="Instagram"  target="_blank" rel="noopener noreferrer">
                 <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="hover:text-primary-foreground/60 transition-colors" aria-label="Facebook">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="hover:text-primary-foreground/60 transition-colors" aria-label="Twitter">
-                <Twitter className="h-5 w-5" />
               </a>
             </div>
           </div>
         </div>
 
         <div className="border-t border-primary-foreground/20 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60">
-          <p>&copy; 2025 Trascendencia. Todos los derechos reservados.</p>
+          <p>&copy; 2026 Trascendencia. Todos los derechos reservados.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-primary-foreground transition-colors">
               Privacidad

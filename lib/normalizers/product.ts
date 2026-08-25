@@ -8,11 +8,12 @@ export type RawProduct = Omit<Partial<Product>, "images" | "variants" | "variant
   category?: string | null
   image?: string | null
   description?: string | null
+  published?: boolean | null
   inStock?: boolean | null
   sizes?: string[] | null
   colors?: string[] | null
   purchaseInfo?: Product["purchaseInfo"] | null
-  images?: Array<{ url?: string } | string> | null
+  images?: Array<{ url?: string; position?: number | string | null } | string> | null
   stock?: number | string | null
   hasVariants?: boolean | null
   variantGroups?: Array<{
@@ -59,6 +60,8 @@ export const extractProductsArray = (response: unknown): RawProduct[] => {
 }
 
 export const normalizeProduct = (item: RawProduct): Product | null => {
+  if (item?.published === false) return null
+
   const id = item?.id !== undefined && item?.id !== null ? String(item.id) : ""
   const name = item?.name ?? ""
   if (!id || !name) return null
@@ -80,16 +83,33 @@ export const normalizeProduct = (item: RawProduct): Product | null => {
 
   const images = Array.isArray(item?.images)
     ? item.images
-        .map((image) => {
-          if (typeof image === "string") return image
-          if (image && typeof image.url === "string") return image.url
+        .map((image, originalIndex) => {
+          if (typeof image === "string") {
+            return { url: image, position: Number.POSITIVE_INFINITY, originalIndex }
+          }
+          if (image && typeof image.url === "string") {
+            const parsedPosition =
+              typeof image.position === "number"
+                ? image.position
+                : typeof image.position === "string"
+                  ? Number(image.position)
+                  : Number.POSITIVE_INFINITY
+
+            return {
+              url: image.url,
+              position: Number.isFinite(parsedPosition) ? parsedPosition : Number.POSITIVE_INFINITY,
+              originalIndex,
+            }
+          }
           return null
         })
-        .filter((image): image is string => !!image)
+        .filter((image): image is NonNullable<typeof image> => image !== null)
+        .sort((a, b) => a.position - b.position || a.originalIndex - b.originalIndex)
+        .map((image) => image.url)
     : []
 
   const productImage = item?.image ?? undefined
-  const normalizedImages = Array.from(new Set([productImage, ...images].filter((image): image is string => !!image)))
+  const normalizedImages = Array.from(new Set([...images, productImage].filter((image): image is string => !!image)))
 
   const categories = Array.isArray(item?.CategoryProduct) ? item.CategoryProduct : []
   const firstCategory = categories.length ? categories[0] : null
