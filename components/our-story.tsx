@@ -22,7 +22,7 @@ export function OurStory() {
           </div>
           <div className="relative h-[400px] sm:h-[500px] md:h-[600px]">
             <img
-              src="/elegant-jewelry-workshop-with-artisan-hands-crafti.jpg"
+              src="/nuestra-historia.jpeg"
               alt="Nuestro taller artesanal"
               className="w-full h-full object-cover"
             />
