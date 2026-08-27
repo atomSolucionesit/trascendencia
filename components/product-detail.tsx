@@ -42,6 +42,21 @@ export function ProductDetail({ product }: ProductDetailProps) {
   }, [hasVariantOptions, selectedOptions, variantGroups.length, variants])
 
   const selectedVariantOptions = selectedVariant?.selections ?? []
+  const selectedOptionImages = useMemo(() => {
+    return variantGroups.flatMap((group) => {
+      const selectedOptionId = selectedOptions[group.id]
+      const option = group.options.find((candidate) => candidate.id === selectedOptionId)
+      if (!option) return []
+
+      return Array.from(
+        new Set(
+          [...(option.imageUrls ?? []), option.imageUrl]
+            .filter((image): image is string => typeof image === "string" && image.length > 0),
+        ),
+      )
+    })
+  }, [selectedOptions, variantGroups])
+
   const variantExtraPrice = selectedVariantOptions.reduce((sum, selection) => {
     const option = variantGroups
       .find((group) => group.id === selection.groupId)
@@ -51,6 +66,19 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const selectedPrice = product.price + variantExtraPrice
   const hasCompleteVariantSelection = !hasVariantOptions || Object.keys(selectedOptions).length === variantGroups.length
   const selectedVariantHasStock = !hasVariantOptions || (!!selectedVariant && selectedVariant.stock > 0)
+
+  const handleOptionSelect = (groupId: string, optionId: string, optionImages: string[]) => {
+    setSelectedOptions((current) => ({
+      ...current,
+      [groupId]: optionId,
+    }))
+
+    const firstOptionImage = optionImages.find((image) => image.length > 0)
+    if (firstOptionImage) {
+      setSelectedImage(firstOptionImage)
+      setImageError(false)
+    }
+  }
 
   const handleAddToCart = () => {
     if (hasVariantOptions && !hasCompleteVariantSelection) {
@@ -141,7 +169,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const safeName = product.name || "Producto sin nombre"
   const priceValue = typeof selectedPrice === "number" && Number.isFinite(selectedPrice) ? selectedPrice : 0
   const galleryImages = Array.from(
-    new Set([product.image, ...(product.images ?? [])].filter((image): image is string => !!image)),
+    new Set(
+      [...selectedOptionImages, product.image, ...(product.images ?? [])]
+        .filter((image): image is string => !!image),
+    ),
   )
   const imageSrc = imageError ? "/placeholder.svg" : selectedImage || galleryImages[0] || "/placeholder.svg"
 
@@ -164,7 +195,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <img
                 src={imageSrc}
                 alt={safeName}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="w-full h-full object-contain"
                 onError={() => setImageError(true)}
                 loading="eager"
               />
@@ -253,16 +284,17 @@ export function ProductDetail({ product }: ProductDetailProps) {
                       {group.options.map((option) => {
                         const isSelected = selectedOptions[group.id] === option.id
                         const optionColor = isColorGroup ? option.colorHex || getColorValue(option.name) : undefined
+                        const optionImages = Array.from(
+                          new Set(
+                            [...(option.imageUrls ?? []), option.imageUrl]
+                              .filter((image): image is string => typeof image === "string" && image.length > 0),
+                          ),
+                        )
                         return (
                           <button
                             key={option.id}
                             type="button"
-                            onClick={() =>
-                              setSelectedOptions((current) => ({
-                                ...current,
-                                [group.id]: option.id,
-                              }))
-                            }
+                            onClick={() => handleOptionSelect(group.id, option.id, optionImages)}
                             className={`min-h-9 px-3 py-2 text-xs font-medium border-2 transition-all ${
                               isColorGroup
                                 ? isSelected
