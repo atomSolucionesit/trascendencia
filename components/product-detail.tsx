@@ -1,13 +1,25 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/contexts/cart-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Product, ProductVariant } from "@/lib/types"
 import { formatPrice } from "@/lib/format-price"
-import { Check, ShoppingBag, ArrowLeft, Heart, Truck, RefreshCw, ShieldCheck, Package } from "lucide-react"
+import {
+  Check,
+  ShoppingBag,
+  ArrowLeft,
+  Heart,
+  Truck,
+  RefreshCw,
+  ShieldCheck,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react"
 
 interface ProductDetailProps {
   product: Product
@@ -16,6 +28,7 @@ interface ProductDetailProps {
 export function ProductDetail({ product }: ProductDetailProps) {
   const [imageError, setImageError] = useState(false)
   const [selectedImage, setSelectedImage] = useState(product.image || product.images?.[0] || "/placeholder.svg")
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
@@ -168,13 +181,46 @@ export function ProductDetail({ product }: ProductDetailProps) {
     typeof product.category === "string" && product.category ? product.category : "sin categoria"
   const safeName = product.name || "Producto sin nombre"
   const priceValue = typeof selectedPrice === "number" && Number.isFinite(selectedPrice) ? selectedPrice : 0
-  const galleryImages = Array.from(
-    new Set(
-      [...selectedOptionImages, product.image, ...(product.images ?? [])]
-        .filter((image): image is string => !!image),
-    ),
+  const galleryImages = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [...selectedOptionImages, product.image, ...(product.images ?? [])]
+            .filter((image): image is string => !!image),
+        ),
+      ),
+    [product.image, product.images, selectedOptionImages],
   )
   const imageSrc = imageError ? "/placeholder.svg" : selectedImage || galleryImages[0] || "/placeholder.svg"
+
+  const showRelativeImage = useCallback((offset: number) => {
+    if (galleryImages.length < 2) return
+
+    const currentIndex = galleryImages.indexOf(selectedImage)
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0
+    const nextIndex = (safeIndex + offset + galleryImages.length) % galleryImages.length
+    setSelectedImage(galleryImages[nextIndex])
+    setImageError(false)
+  }, [galleryImages, selectedImage])
+
+  useEffect(() => {
+    if (!isLightboxOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsLightboxOpen(false)
+      if (event.key === "ArrowLeft") showRelativeImage(-1)
+      if (event.key === "ArrowRight") showRelativeImage(1)
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isLightboxOpen, showRelativeImage])
 
   return (
     <section className="py-8 md:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
@@ -192,15 +238,42 @@ export function ProductDetail({ product }: ProductDetailProps) {
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 lg:gap-16">
           <div className="space-y-4">
             <div className="relative aspect-[3/4] md:aspect-square bg-muted rounded-2xl overflow-hidden group">
-              <img
-                src={imageSrc}
-                alt={safeName}
-                className="w-full h-full object-contain"
-                onError={() => setImageError(true)}
-                loading="eager"
-              />
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(true)}
+                className="block h-full w-full cursor-zoom-in"
+                aria-label={`Ampliar imagen de ${safeName}`}
+              >
+                <img
+                  src={imageSrc}
+                  alt={safeName}
+                  className="w-full h-full object-contain"
+                  onError={() => setImageError(true)}
+                  loading="eager"
+                />
+              </button>
+              {galleryImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => showRelativeImage(-1)}
+                    className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-2.5 shadow-md backdrop-blur-sm transition hover:bg-background"
+                    aria-label="Ver imagen anterior"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showRelativeImage(1)}
+                    className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-2.5 shadow-md backdrop-blur-sm transition hover:bg-background"
+                    aria-label="Ver imagen siguiente"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
               {product.inStock && (
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4 z-10">
                   <button
                     className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
                     aria-label="Agregar a favoritos"
@@ -478,6 +551,67 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
         </div>
       </div>
+
+      {isLightboxOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Galería ampliada de ${safeName}`}
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute right-4 top-4 z-20 rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25"
+            aria-label="Cerrar imagen ampliada"
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          {galleryImages.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  showRelativeImage(-1)
+                }}
+                className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 sm:left-6"
+                aria-label="Ver imagen anterior"
+              >
+                <ChevronLeft className="h-7 w-7" />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  showRelativeImage(1)
+                }}
+                className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 sm:right-6"
+                aria-label="Ver imagen siguiente"
+              >
+                <ChevronRight className="h-7 w-7" />
+              </button>
+            </>
+          )}
+
+          <div className="flex h-full w-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
+            <img
+              src={imageSrc}
+              alt={safeName}
+              className="max-h-full max-w-full object-contain"
+              onError={() => setImageError(true)}
+            />
+          </div>
+
+          {galleryImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1.5 text-sm text-white">
+              {Math.max(galleryImages.indexOf(selectedImage), 0) + 1} / {galleryImages.length}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
