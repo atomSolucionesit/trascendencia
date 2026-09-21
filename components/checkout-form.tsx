@@ -2,13 +2,13 @@
 
 import type React from "react"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/contexts/cart-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Lock } from "lucide-react"
+import { CreditCard, Lock, MessageCircle } from "lucide-react"
 import Image from "next/image"
 import { createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
 import { createSale, updateSaleStatus } from "@/services/sales"
@@ -70,6 +70,13 @@ export function CheckoutForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [paymentDiscounts, setPaymentDiscounts] = useState<PaymentDiscount[]>([])
   const [selectedPaymentKey, setSelectedPaymentKey] = useState(CARD_PAYMENT_KEY)
+  const shippingRef = useRef<HTMLFieldSetElement>(null)
+  const processingRef = useRef(false)
+  const [shippingComplete, setShippingComplete] = useState(false)
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null)
+
+  const shippingInputs = () => Array.from(shippingRef.current?.querySelectorAll("input") ?? [])
+  const validateShipping = () => shippingInputs().every((input) => input.value.trim() && input.validity.valid)
 
   const shippingCost = total >= 150 ? 0 : 15
   const baseTotal = roundMoney(total + shippingCost)
@@ -103,28 +110,53 @@ export function CheckoutForm() {
   const selectedPaymentTypeId = selectedPayment?.discount?.paymentTypeId ?? null
   const isCardPayment = selectedPayment?.type === "card"
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, viaWhatsapp = false) => {
     e.preventDefault()
+    if (processingRef.current || items.length === 0) return
+    if (!validateShipping()) {
+      setShippingComplete(false)
+      const invalidInput = shippingInputs().find((input) => !input.value.trim() || !input.validity.valid)
+      invalidInput?.focus()
+      invalidInput?.reportValidity()
+      return
+    }
+    if (viaWhatsapp && whatsappUrl) {
+      window.location.assign(whatsappUrl)
+      return
+    }
     let createdSaleId: string | null = null
+    const chargeCard = isCardPayment && !viaWhatsapp
+    const orderTotal = viaWhatsapp ? baseTotal : finalTotal
+    const buyer = Object.fromEntries(shippingInputs().map((input) => [input.id, input.value.trim()]))
+    const productLines = items.map((item) => {
+      const variants = [
+        item.selectedVariantName,
+        ...(item.selectedVariantOptions?.map((option) => `${option.groupName}: ${option.optionName}`) ?? []),
+        item.selectedSize && `Talle: ${item.selectedSize}`,
+        item.selectedColor && `Color: ${item.selectedColor}`,
+      ].filter(Boolean).join(", ")
+      return `• ${item.name}${variants ? ` (${variants})` : ""}\nCantidad: ${item.quantity} · Precio unitario: ${formatPrice(item.price)} · Subtotal: ${formatPrice(item.price * item.quantity)}`
+    })
 
+    processingRef.current = true
     setIsProcessing(true)
     setError(null)
     setSuccessMessage(null)
 
     try {
-      if (isCardPayment && (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv)) {
+      if (chargeCard && (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv)) {
         throw new Error("Completa los datos de la tarjeta")
       }
 
       const normalizedMonth = expiryMonth.replace(/\D/g, "").padStart(2, "0").slice(-2)
       const normalizedYear = expiryYear.replace(/\D/g, "").slice(-2).padStart(2, "0")
 
-      if (isCardPayment && (normalizedMonth.length !== 2 || normalizedYear.length !== 2)) {
+      if (chargeCard && (normalizedMonth.length !== 2 || normalizedYear.length !== 2)) {
         throw new Error("Formato de expiración inválido")
       }
 
       const salePayload = {
-        total: finalTotal,
+        total: orderTotal,
         subTotal: total,
         taxAmount: 0,
         status: "PENDING",
@@ -138,8 +170,8 @@ export function CheckoutForm() {
           isCredit: true,
           date: new Date().toISOString(),
           dueDate: new Date().toISOString(),
-          outstandingBalance: finalTotal,
-          details: selectedPaymentTypeId
+          outstandingBalance: orderTotal,
+          details: !viaWhatsapp && selectedPaymentTypeId
             ? [
                 {
                   paymentTypeId: selectedPaymentTypeId,
@@ -167,6 +199,35 @@ export function CheckoutForm() {
         throw new Error("No se pudo obtener el ID de la venta")
       }
       createdSaleId = String(saleIdentifier)
+
+      if (viaWhatsapp) {
+        const saleCorrelative = saleResponse?.info?.correlative || saleResponse?.correlative || "Sin correlativo"
+        const message = [
+          "¡Hola Trascendencia! Quiero finalizar mi compra por WhatsApp.",
+          `Pedido: ${saleCorrelative}`,
+          "",
+          "Datos del comprador:",
+          `Nombre: ${buyer.firstName} ${buyer.lastName}`,
+          `Correo electrónico: ${buyer.email}`,
+          `Teléfono: ${buyer.phone}`,
+          `Dirección: ${buyer.address}`,
+          `Ciudad: ${buyer.city} · Estado/Provincia: ${buyer.state} · Código postal: ${buyer.zip}`,
+          "",
+          "Productos:",
+          ...productLines,
+          "",
+          `Subtotal: ${formatPrice(total)}`,
+          `Envío: ${shippingCost === 0 ? "Gratis" : formatPrice(shippingCost)}`,
+          `Total: ${formatPrice(orderTotal)}`,
+          "Pedido pendiente de confirmación. Forma de pago y descuentos a coordinar.",
+        ].join("\n")
+        const phone = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "543772449820").replace(/\D/g, "")
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+        setWhatsappUrl(url)
+        setSuccessMessage("Pedido pendiente registrado. Continuá por WhatsApp para coordinar el pago.")
+        window.location.assign(url)
+        return
+      }
 
       if (!isCardPayment) {
         setSuccessMessage("Pedido registrado")
@@ -211,7 +272,7 @@ export function CheckoutForm() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al procesar el pago"
       setError(message)
-      if (createdSaleId) {
+      if (createdSaleId && !viaWhatsapp) {
         try {
           await updateSaleStatus(createdSaleId, { status: "FAILED" })
         } catch (e) {
@@ -219,6 +280,7 @@ export function CheckoutForm() {
         }
       }
     } finally {
+      processingRef.current = false
       setIsProcessing(false)
     }
   }
@@ -255,7 +317,7 @@ export function CheckoutForm() {
     <form onSubmit={handleSubmit}>
       <div className="grid lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
-          <div className="space-y-6">
+          <fieldset ref={shippingRef} disabled={isProcessing || !!whatsappUrl} className="space-y-6" onChange={() => setShippingComplete(validateShipping())}>
             <h2 className="font-serif text-2xl">Información de Envío</h2>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -293,7 +355,7 @@ export function CheckoutForm() {
                 <Input id="zip" required />
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <div className="space-y-6 pt-8 border-t border-border">
             <div className="flex items-center gap-2">
@@ -311,6 +373,7 @@ export function CheckoutForm() {
                     <button
                       key={option.key}
                       type="button"
+                      disabled={isProcessing || !!whatsappUrl}
                       onClick={() => setSelectedPaymentKey(option.key)}
                       className={`rounded-lg border p-4 text-left transition-colors ${
                         isSelected
@@ -329,7 +392,23 @@ export function CheckoutForm() {
                     </button>
                   )
                 })}
+                <button
+                  type="button"
+                  disabled={!shippingComplete || isProcessing}
+                  onClick={(event) => void handleSubmit(event, true)}
+                  aria-describedby="whatsapp-help"
+                  className="rounded-lg border border-green-700/40 bg-green-50 p-4 text-left text-green-900 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    Finalizar la compra por WhatsApp
+                  </span>
+                  <span className="mt-1 block text-xs">Coordiná el pago con nosotros</span>
+                </button>
               </div>
+              <p id="whatsapp-help" className="text-xs text-muted-foreground">
+                Completá la información de envío para continuar por WhatsApp. El medio de pago y sus descuentos se coordinan por chat.
+              </p>
             </div>
             {!isCardPayment && (
               <div className="rounded-lg border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
@@ -409,8 +488,9 @@ export function CheckoutForm() {
                 />
               </div>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            {successMessage && <p role="status" className="text-sm text-green-600">{successMessage}</p>}
+            {whatsappUrl && <a href={whatsappUrl} className="block text-sm underline">Abrir WhatsApp para continuar con el pedido</a>}
           </div>
         </div>
 
@@ -491,7 +571,7 @@ export function CheckoutForm() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full mt-6" disabled={isProcessing}>
+            <Button type="submit" size="lg" className="w-full mt-6" disabled={isProcessing || !!whatsappUrl}>
               {isProcessing ? "Procesando..." : "Confirmar Pedido"}
             </Button>
 
