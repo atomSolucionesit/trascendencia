@@ -8,10 +8,11 @@ import { useCart } from "@/contexts/cart-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Lock, MessageCircle } from "lucide-react"
+import { Lock, MessageCircle } from "lucide-react"
 import Image from "next/image"
-import { createPaywayPayment, createPaywayToken } from "@/services/payments/payway"
-import { createSale, updateSaleStatus } from "@/services/sales"
+import { createMercadoPagoCheckout } from "@/services/payments/mercadopago"
+import { prepareCheckoutSession, saveCheckoutSession } from "@/services/payments/checkout-session"
+import { createSale } from "@/services/sales"
 import { getEcommercePaymentDiscounts, type PaymentDiscount } from "@/services/nexus/payment-discounts"
 import { formatPrice } from "@/lib/format-price"
 
@@ -34,25 +35,14 @@ const getColorValue = (color: string): string => {
   return colorMap[color.toLowerCase()] || color
 }
 
-const CARD_PAYMENT_KEY = "payway-card"
+const MERCADO_PAGO_KEY = "mercadopago"
 
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
-
-const isCardPaymentName = (name: string) => {
-  const normalized = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-
-  return ["tarjeta", "card", "payway", "credito", "debito", "visa", "mastercard"].some((term) =>
-    normalized.includes(term),
-  )
-}
 
 type CheckoutPaymentOption = {
   key: string
   label: string
-  type: "card" | "manual"
+  type: "online"
   discount?: PaymentDiscount
 }
 
@@ -60,16 +50,10 @@ export function CheckoutForm() {
   const router = useRouter()
   const { items, total, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
-  const [cardNumber, setCardNumber] = useState("")
-  const [cardName, setCardName] = useState("")
-  const [expiryMonth, setExpiryMonth] = useState("")
-  const [expiryYear, setExpiryYear] = useState("")
-  const [cvv, setCvv] = useState("")
-  const [docNumber, setDocNumber] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [paymentDiscounts, setPaymentDiscounts] = useState<PaymentDiscount[]>([])
-  const [selectedPaymentKey, setSelectedPaymentKey] = useState(CARD_PAYMENT_KEY)
+  const [selectedPaymentKey, setSelectedPaymentKey] = useState(MERCADO_PAGO_KEY)
   const shippingRef = useRef<HTMLFieldSetElement>(null)
   const processingRef = useRef(false)
   const [shippingComplete, setShippingComplete] = useState(false)
@@ -84,22 +68,15 @@ export function CheckoutForm() {
     const activeDiscounts = paymentDiscounts.filter(
       (discount) => discount.isActive && discount.isEcommerceEnabled && discount.percentage !== 0,
     )
-    const cardDiscount = activeDiscounts.find((discount) => isCardPaymentName(discount.paymentTypeName))
-    const manualDiscounts = activeDiscounts.filter((discount) => !isCardPaymentName(discount.paymentTypeName))
+    const mercadoPagoDiscount = activeDiscounts.find((discount) => /mercado\s*pago/i.test(discount.paymentTypeName))
 
     return [
       {
-        key: CARD_PAYMENT_KEY,
-        label: "Tarjeta",
-        type: "card",
-        discount: cardDiscount,
+        key: MERCADO_PAGO_KEY,
+        label: "Mercado Pago",
+        type: "online",
+        discount: mercadoPagoDiscount,
       },
-      ...manualDiscounts.map((discount) => ({
-        key: `payment-${discount.id}`,
-        label: discount.paymentTypeName,
-        type: "manual" as const,
-        discount,
-      })),
     ]
   }, [paymentDiscounts])
   const selectedPayment = paymentOptions.find((option) => option.key === selectedPaymentKey) ?? paymentOptions[0]
@@ -108,7 +85,7 @@ export function CheckoutForm() {
   const finalTotal = roundMoney(Math.max(baseTotal + paymentAdjustmentAmount, 0))
   const hasPaymentAdjustment = paymentAdjustmentAmount !== 0
   const selectedPaymentTypeId = selectedPayment?.discount?.paymentTypeId ?? null
-  const isCardPayment = selectedPayment?.type === "card"
+  const isOnlinePayment = selectedPayment?.type === "online"
 
   const handleSubmit = async (e: React.FormEvent, viaWhatsapp = false) => {
     e.preventDefault()
@@ -125,7 +102,6 @@ export function CheckoutForm() {
       return
     }
     let createdSaleId: string | null = null
-    const chargeCard = isCardPayment && !viaWhatsapp
     const orderTotal = viaWhatsapp ? baseTotal : finalTotal
     const buyer = Object.fromEntries(shippingInputs().map((input) => [input.id, input.value.trim()]))
     const productLines = items.map((item) => {
@@ -144,23 +120,25 @@ export function CheckoutForm() {
     setSuccessMessage(null)
 
     try {
-      if (chargeCard && (!cardNumber || !cardName || !expiryMonth || !expiryYear || !cvv)) {
-        throw new Error("Completa los datos de la tarjeta")
+      if (isOnlinePayment && !viaWhatsapp && finalTotal <= 0) {
+        throw new Error("El total debe ser mayor a cero para pagar con Mercado Pago")
       }
-
-      const normalizedMonth = expiryMonth.replace(/\D/g, "").padStart(2, "0").slice(-2)
-      const normalizedYear = expiryYear.replace(/\D/g, "").slice(-2).padStart(2, "0")
-
-      if (chargeCard && (normalizedMonth.length !== 2 || normalizedYear.length !== 2)) {
-        throw new Error("Formato de expiración inválido")
-      }
-
+      const checkoutSession = isOnlinePayment && !viaWhatsapp
+        ? await prepareCheckoutSession({ items, buyer, total: finalTotal, selectedPaymentTypeId }, items)
+        : null
       const salePayload = {
+        ...(checkoutSession ? { clientOperationId: checkoutSession.operationId } : {}),
         total: orderTotal,
         subTotal: total,
         taxAmount: 0,
         status: "PENDING",
         origin: "TIENDA",
+        customerName: `${buyer.firstName} ${buyer.lastName}`,
+        preferredPaymentMethod: viaWhatsapp ? "A coordinar por WhatsApp" : selectedPayment.label,
+        notes: [
+          `Email: ${buyer.email} · Teléfono: ${buyer.phone}`,
+          `Envío: ${buyer.address}, ${buyer.city}, ${buyer.state}, CP ${buyer.zip}`,
+        ].join("\n"),
         receiptTypeId: 1,
         documentTypeId: 1,
         currencyId: 1,
@@ -189,7 +167,9 @@ export function CheckoutForm() {
         })),
       }
 
-      const saleResponse = await createSale(salePayload)
+      const saleResponse = checkoutSession?.saleId
+        ? { id: checkoutSession.saleId }
+        : await createSale(salePayload)
       const saleIdentifier =
         (saleResponse as any)?.info?.id ||
         (saleResponse as any)?.id ||
@@ -199,6 +179,10 @@ export function CheckoutForm() {
         throw new Error("No se pudo obtener el ID de la venta")
       }
       createdSaleId = String(saleIdentifier)
+      if (checkoutSession) {
+        checkoutSession.saleId = createdSaleId
+        saveCheckoutSession(checkoutSession)
+      }
 
       if (viaWhatsapp) {
         const saleCorrelative = saleResponse?.info?.correlative || saleResponse?.correlative || "Sin correlativo"
@@ -229,56 +213,23 @@ export function CheckoutForm() {
         return
       }
 
-      if (!isCardPayment) {
+      if (!isOnlinePayment) {
         setSuccessMessage("Pedido registrado")
         clearCart()
         router.push("/confirmacion")
         return
       }
 
-      const tokenResponse = await createPaywayToken({
-        card_number: cardNumber.replace(/\s+/g, ""),
-        card_expiration_month: normalizedMonth,
-        card_expiration_year: normalizedYear,
-        security_code: cvv,
-        card_holder_name: cardName,
-        card_holder_identification: {
-          type: "dni",
-          number: docNumber || "00000000",
-        },
-      })
-
-      const token = tokenResponse.id
-
-      const paymentResponse = await createPaywayPayment({
-        token,
-        amount: finalTotal,
+      const redirectUrl = await createMercadoPagoCheckout({
         saleId: createdSaleId,
+        total: finalTotal,
+        buyer,
+        existingUrl: checkoutSession?.redirectUrl,
       })
-
-      if (!paymentResponse.success) {
-        throw new Error("Pago rechazado o error al procesar el pago")
-      }
-
-      if (paymentResponse.success) {
-        await updateSaleStatus(String(saleIdentifier), { status: "COMPLETED" })
-        setSuccessMessage("Pago aprobado")
-        clearCart()
-        router.push("/confirmacion")
-      } else {
-        await updateSaleStatus(String(saleIdentifier), { status: "FAILED" })
-        throw new Error("Pago rechazado o error al procesar el pago")
-      }
+      if (checkoutSession) saveCheckoutSession({ ...checkoutSession, redirectUrl })
+      window.location.assign(redirectUrl)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al procesar el pago"
-      setError(message)
-      if (createdSaleId && !viaWhatsapp) {
-        try {
-          await updateSaleStatus(createdSaleId, { status: "FAILED" })
-        } catch (e) {
-          console.error("No se pudo actualizar la venta a FAILED", e)
-        }
-      }
+      setError(err instanceof Error ? err.message : "No se pudo iniciar el pago con Mercado Pago")
     } finally {
       processingRef.current = false
       setIsProcessing(false)
@@ -385,8 +336,8 @@ export function CheckoutForm() {
                       <span className={`mt-1 block text-xs ${isSelected ? "text-background/75" : "text-muted-foreground"}`}>
                         {percentage
                           ? `${percentage > 0 ? "Incremento" : "Descuento"} ${percentage > 0 ? "+" : ""}${percentage}%`
-                          : option.type === "card"
-                            ? "Pago online con tarjeta"
+                          : option.type === "online"
+                            ? "Pagá de forma segura con Mercado Pago"
                             : "Pago a coordinar"}
                       </span>
                     </button>
@@ -410,84 +361,12 @@ export function CheckoutForm() {
                 Completá la información de envío para continuar por WhatsApp. El medio de pago y sus descuentos se coordinan por chat.
               </p>
             </div>
-            {!isCardPayment && (
+            {isOnlinePayment && (
               <div className="rounded-lg border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
-                El pedido quedara registrado para coordinar el pago con {selectedPayment.label}. No se solicitaran datos de tarjeta.
+                Te vamos a redirigir a Mercado Pago para elegir el medio de pago y completar tu compra.
+                El pedido se confirmará cuando Mercado Pago acredite el pago.
               </div>
             )}
-            <div className={isCardPayment ? "space-y-2" : "hidden"}>
-              <Label htmlFor="cardName">Nombre en la Tarjeta</Label>
-              <Input
-                id="cardName"
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-                required={isCardPayment}
-                disabled={!isCardPayment}
-              />
-            </div>
-            <div className={isCardPayment ? "space-y-2" : "hidden"}>
-              <Label htmlFor="docNumber">Documento (DNI)</Label>
-              <Input
-                id="docNumber"
-                value={docNumber}
-                onChange={(e) => setDocNumber(e.target.value)}
-                placeholder="12345678"
-                required={isCardPayment}
-                disabled={!isCardPayment}
-              />
-            </div>
-            <div className={isCardPayment ? "space-y-2" : "hidden"}>
-              <Label htmlFor="cardNumber">Número de Tarjeta</Label>
-              <div className="relative">
-                <Input
-                  id="cardNumber"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  placeholder="1234 5678 9012 3456"
-                  required={isCardPayment}
-                  disabled={!isCardPayment}
-                />
-                <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              </div>
-            </div>
-            <div className={isCardPayment ? "grid grid-cols-3 gap-4" : "hidden"}>
-              <div className="space-y-2">
-                <Label htmlFor="expiryMonth">Mes (MM)</Label>
-                <Input
-                  id="expiryMonth"
-                  value={expiryMonth}
-                  onChange={(e) => setExpiryMonth(e.target.value)}
-                  placeholder="12"
-                  maxLength={2}
-                  required={isCardPayment}
-                  disabled={!isCardPayment}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expiryYear">Año (YY o YYYY)</Label>
-                <Input
-                  id="expiryYear"
-                  value={expiryYear}
-                  onChange={(e) => setExpiryYear(e.target.value)}
-                  placeholder="25"
-                  maxLength={4}
-                  required={isCardPayment}
-                  disabled={!isCardPayment}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cvv">CVV</Label>
-                <Input
-                  id="cvv"
-                  value={cvv}
-                  onChange={(e) => setCvv(e.target.value)}
-                  placeholder="123"
-                  maxLength={3}
-                  required={isCardPayment}
-                  disabled={!isCardPayment}
-                />
-              </div>
-            </div>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             {successMessage && <p role="status" className="text-sm text-green-600">{successMessage}</p>}
             {whatsappUrl && <a href={whatsappUrl} className="block text-sm underline">Abrir WhatsApp para continuar con el pedido</a>}
@@ -572,7 +451,7 @@ export function CheckoutForm() {
             </div>
 
             <Button type="submit" size="lg" className="w-full mt-6" disabled={isProcessing || !!whatsappUrl}>
-              {isProcessing ? "Procesando..." : "Confirmar Pedido"}
+              {isProcessing ? "Procesando..." : isOnlinePayment ? "Pagar con Mercado Pago" : "Confirmar Pedido"}
             </Button>
 
             <p className="text-xs text-muted-foreground text-center mt-4">Tu información está protegida y segura</p>

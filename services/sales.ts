@@ -40,7 +40,7 @@ const getEcommerceAccessToken = async () => {
   return accessToken
 }
 
-const createSalesClient = async () => {
+export const createSalesClient = async () => {
   const accessToken = await getEcommerceAccessToken()
 
   return axios.create({
@@ -57,6 +57,12 @@ export async function createSale(payload: any) {
   const client = await createSalesClient()
   const response = await client.post("/sales", payload)
   return response.data
+}
+
+export async function getSale(id: string) {
+  const client = await createSalesClient()
+  const response = await client.get(`/sales/${encodeURIComponent(id)}`)
+  return response.data?.info ?? response.data
 }
 
 export async function updateSaleStatus(id: string, payload: any) {
