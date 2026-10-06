@@ -63,6 +63,7 @@ export interface CartItem extends Product {
   quantity: number
   selectedSize?: string | null
   selectedColor?: string | null
+  selectedVariantStock?: number
   selectedVariantId?: string | null
   selectedVariantName?: string | null
   selectedVariantOptions?: ProductVariantSelection[]
@@ -75,7 +76,7 @@ export interface CartContextType {
     selectedSize?: string | null,
     selectedColor?: string | null,
     selectedVariant?: ProductVariant | null,
-  ) => void
+  ) => boolean
   removeFromCart: (cartKey: string) => void
   updateQuantity: (cartKey: string, quantity: number) => void
   clearCart: () => void

@@ -39,7 +39,10 @@ export function ProductCard({ product }: ProductCardProps) {
       })
       return
     }
-    addToCart(product)
+    if (!addToCart(product)) {
+      toast({ title: "Stock máximo alcanzado", description: "Ya agregaste todas las unidades disponibles" })
+      return
+    }
     toast({
       title: "Agregado al carrito",
       description: `${product.name} ha sido agregado a tu carrito`,
@@ -113,7 +116,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-[10px] sm:text-xs tracking-widest text-muted-foreground uppercase">{categoryLabel}</p>
           <h3 className="font-serif text-sm sm:text-base lg:text-lg leading-tight">{product.name}</h3>
           <p className="text-xs sm:text-sm">{priceValue ? formatPrice(priceValue) : "Precio no disponible"}</p>
-          <p className="text-[10px] sm:text-xs text-green-600 font-medium">Hasta 6 cuotas sin interes</p>
+          <p className="text-[10px] sm:text-xs text-green-600 font-medium">Hasta 3 cuotas sin interés</p>
         </div>
       </Link>
       <div className="mt-3 md:hidden">

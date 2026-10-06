@@ -1,5 +1,6 @@
 "use client"
 
+import { availableCartStock } from "@/lib/cart-stock"
 import { useCart } from "@/contexts/cart-context"
 import { Button } from "@/components/ui/button"
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
@@ -109,6 +110,7 @@ export function CartContent() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8 bg-transparent"
+                    disabled={item.quantity >= availableCartStock(items, item)}
                     onClick={() => updateQuantity(cartKey, item.quantity + 1)}
                   >
                     <Plus className="h-3 w-3" />

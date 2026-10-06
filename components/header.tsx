@@ -22,6 +22,9 @@ export function Header({ categories = [] }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+      <div className="bg-primary px-3 py-1.5 text-center text-[11px] sm:text-xs text-primary-foreground">
+        3 cuotas sin interés en cualquier compra · Hasta 6 cuotas en compras mayores a $250.000
+      </div>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link href="/" className="flex-shrink-0 flex items-center" aria-label="Trascendencia">

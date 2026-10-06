@@ -118,7 +118,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
       return
     }
 
-    addToCart({ ...product, price: selectedPrice }, selectedSize, selectedColor, selectedVariant)
+    if (!addToCart({ ...product, price: selectedPrice }, selectedSize, selectedColor, selectedVariant)) {
+      toast({ title: "Stock máximo alcanzado", description: "Ya agregaste todas las unidades disponibles" })
+      return
+    }
     toast({
       title: "Agregado al carrito",
       description: `${product.name} ha sido agregado a tu carrito`,
